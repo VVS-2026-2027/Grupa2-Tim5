@@ -1,0 +1,55 @@
+﻿using Microsoft.AspNetCore.Identity;
+using PopravkaBa.Domain.Enums;
+using PopravkaBa.Domain.Shared;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace PopravkaBa.Domain.Models
+{
+
+    public class ApplicationUser : IdentityUser
+    {
+        [NotMapped]
+        public virtual string DisplayName => $"{Ime} {Prezime}" ?? UserName;
+
+        [NotMapped]
+        public virtual string SkracenoIme => !string.IsNullOrEmpty(Prezime) ? $"{Ime} {Prezime[0]}." : DisplayName;
+
+        private string _ime = null;
+        private string _prezime = null;
+        public string? Ime {
+            get => _ime;
+            set => _ime = NameFormatter.NormalizeName(value ?? string.Empty);
+        }
+        public string? Prezime
+        {
+            get => _prezime;
+            set => _prezime = NameFormatter.NormalizeName(value ?? string.Empty);
+        }
+        public DateTime DatumRegistracije { get; set; } = DateTime.UtcNow;
+        public string? Slika { get; set; }
+        public ICollection<Oglas>? Oglasi { get; set; }
+        public ICollection<KorisnikMjesto>? Mjesta { get; set; } 
+
+        public ICollection<VerifikacijskiToken> Tokeni { get; set; }
+
+        public Status StatusVerifikacije { get; private set; } = Status.NaCekanju;
+
+        
+
+        // Funkcija za osvježavanje statusa aktivnosti naloga, koristi se nakon promjene email potvrde ili sl.
+        public void OsvjeziStatusAktivnosti()
+        {
+            if (StatusVerifikacije == Status.Neaktivan) return;
+            StatusVerifikacije = Aktivan();
+        }
+        public void SuspendirajNalog() => StatusVerifikacije = Status.Neaktivan;
+
+        // Odsuspendiraj nalog: Vrati na provjeru verifikacije kad je nalog aktivan
+        public void OdsuspendirajNalog() => StatusVerifikacije = Aktivan();
+
+        // Za firme mora dodatno provjeriti da li je Admin verificirao,
+        // to se vrši overrideom ove funkcije
+        public virtual Status   Aktivan() =>
+          EmailConfirmed ? Status.Aktivan : Status.NaCekanju; 
+    }
+}

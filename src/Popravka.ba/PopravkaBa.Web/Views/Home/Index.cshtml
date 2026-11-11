@@ -1,0 +1,287 @@
+﻿@model HomeViewModel
+@using Microsoft.AspNetCore.Identity
+@using PopravkaBa.Domain.Models
+@using PopravkaBa.Domain.Enums
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@{
+    ViewData["Title"] = "Popravka.ba - Vaš online prostor za provjerene usluge";
+}
+    @if (SignInManager.IsSignedIn(User))
+    {
+        var user = await UserManager.GetUserAsync(User);
+        if (user is not null && user.StatusVerifikacije != Status.Aktivan)
+        {
+            if (!user.EmailConfirmed) {
+            <div class="alert alert-wadrning d-flex justify-content-between align-items-center mb-0 rounded-0" role="alert">
+                <span>
+                    Vaš email nije potvrđen. Provjerite inbox ili
+                    <a asp-controller="Account" asp-action="PosaljiVerifikaciju" class="alert-link">pošaljite link ponovo</a>.
+                </span>
+            </div>
+            }
+            else
+            {
+                <div class="alert alert-wadrning d-flex justify-content-between align-items-center mb-0 rounded-0" role="alert">
+                    <span>
+                        Vaš email je uspješno potvrđen, no da biste imali potpun pristup platformi potrebno je proći i
+                        <a asp-controller="Profil" asp-route-username=@user.UserName  asp-action="Index" class="alert-link">dodatni korak verifikacije</a>.
+                    </span>
+                </div>
+            }
+        }
+    }
+<section class="hero">
+    <div class="hero-inner">
+        <h1 class="hero-title">
+            Vaš online prostor<br>
+            <span class="hero-title-accent">za provjerene usluge.</span>
+        </h1>
+
+        <div class="hero-actions">
+            <a class="hero-btn" asp-controller="Pretraga" asp-action="Index">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Pretraži majstore
+            </a>
+            <a class="hero-btn hero-btn--primary" asp-controller="ObjaviOglas" asp-action="Index">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Postavi oglas
+            </a>
+        </div>
+
+        <p class="hero-stat">@Model.BrojRealiziranihUsluga+ uspješno realiziranih usluga.</p>
+
+        @{
+            bool jeKlijent = User.IsInRole("Klijent");
+            // Klijenti vide 2 taba, ostali (Majstor/Firma/nelogovan) vide 3 taba
+            var homeTabovi = jeKlijent
+                ? new[] { "Izvrsioci usluga", "Oglasi za popravke" }
+                : new[] { "Izvrsioci usluga", "Oglasi za popravke", "Oglasi za posao" };
+        }
+        <div class="hero-search-container">
+            <div class="hero-search-tabs">
+                @foreach (var tab in homeTabovi)
+                {
+                    <button type="button" class="hero-tab-btn @(tab == homeTabovi[0] ? "active" : "")"
+                            data-tab="@tab">@tab</button>
+                }
+            </div>
+
+            <form class="hero-search" asp-controller="Pretraga" asp-action="Index" method="get" novalidate>
+            <input type="hidden" name="AktivniTab" id="homeAktivniTab" value="@homeTabovi[0]" />
+
+            <div class="hero-search-input">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" name="KljucneRijeci" placeholder="Treba mi... (Vodoinstalater, Naziv majstora/firme, ...)"
+                oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()"
+                />
+            </div>
+
+            <div class="hero-search-select-wrapper">
+                <div class="hero-search-select-display" id="lokacijaDisplay">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                        <circle cx="12" cy="9" r="2.5" />
+                    </svg>
+                    <span id="lokacijaLabel">Lokacija</span>
+                </div>
+                <input type="hidden" name="lokacija" id="lokacijaValue" value="" />
+
+                <div class="lokacija-dropdown" id="lokacijaDropdown">
+                    <div class="lokacija-search-wrap">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="lokacijaSearch" placeholder="Pretraži mjesto..." autocomplete="off"
+                        oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()"
+                        />
+                    </div>
+                    <div class="lokacija-options" id="lokacijaOptions">
+                        @{
+                            var byKantonGroups = Model.Mjesta.GroupBy(m => m.Kanton).OrderBy(g => (int)g.Key);
+                        }
+                        @foreach (var group in byKantonGroups)
+                        {
+                            var kantonName = group.Key.GetType()
+                                .GetMember(group.Key.ToString())
+                                .First()
+                                .GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.DisplayAttribute), false)
+                                .Cast<System.ComponentModel.DataAnnotations.DisplayAttribute>()
+                                .FirstOrDefault()?.Name ?? group.Key.ToString();
+
+                            <div class="lokacija-group-label" data-group="@kantonName">@kantonName</div>
+                            @foreach (var m in group.OrderBy(m => m.Naziv))
+                            {
+                                <div class="lokacija-option" data-value="@m.MjestoID" data-label="@m.Naziv" data-group="@kantonName">
+                                    @m.Naziv
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="hero-search-submit">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="7"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                Pretraži
+            </button>
+        </form>
+        </div><!-- /hero-search-container -->
+    </div>
+
+</section>
+<section class="kategorije-section">
+    <div class="kategorije-inner">
+        <div class="kategorije-header">
+            <h2 style="display:block;text-align:center;margin:0;">Usluge na raspolaganju</h2>
+
+            <a asp-controller="Pretraga" asp-action="Index">Pogledaj sve →</a>
+        </div>
+        <div class="kategorije-grid">
+        @foreach (var kategorijaTuple in Model.TopKategorije)
+         {
+            // TODO: Usaglasit sa Tarikovim argumentima kada završi pretragu
+            <a asp-controller = "Pretraga" asp-action = "Index" asp-route-kategorijaID="@kategorijaTuple.ID" class="kategorija-card">
+                <strong>@kategorijaTuple.Naziv</strong>
+                <span>Aktivni majstori: @kategorijaTuple.AktivniIzvrsilacCount</span>
+            </a>
+           
+          }
+        </div>
+    </div>
+</section>
+<section class="oglasi-section">
+    <div class="oglasi-inner">
+        <div class="oglasi-header">
+            <h2>Nedavno objavljeni oglasi</h2>
+            <a asp-controller="Pretraga" asp-action="Index" asp-route-AktivniTab="Oglasi za popravke">Pogledaj još →</a>
+        </div>
+        <div class="oglasi-grid">
+            @foreach (var oglas in Model.NedavniOglasi)
+            {
+                <a class="oglas-card" asp-controller="@oglas.TipOglasa" asp-action="Detalji" asp-route-id="@oglas.ID">
+                    @if (!string.IsNullOrEmpty(oglas.Slika))
+                    {
+                        <div class="oglas-thumb">
+                            <img src="@oglas.Slika" alt="@oglas.Naslov" loading="lazy" />
+                        </div>
+                    }
+                    <div class="oglas-body">
+                        <strong>@oglas.Naslov</strong>
+                        <p>@oglas.Opis</p>
+                    </div>
+                    <div class="oglas-footer">
+                        <span class="oglas-autor">
+                            @if (oglas.VlasnikOglasaSlika != null)
+                            {
+                                <img src="@oglas.VlasnikOglasaSlika" class="oglas-avatar" />
+                            }
+                            else
+                            {
+                                <i class="fa-solid fa-circle-user"></i>
+                            }
+                            @oglas.VlasnikOglasaSkracenoIme
+                        </span>
+                        <span>Broj odgovora: @oglas.BrojPonuda</span>
+                    </div>
+                </a>
+            }
+        </div>
+    </div>
+</section>
+@if (!User.Identity.IsAuthenticated)
+{
+    <section class="cta-section">
+        <div class="cta-inner">
+            <div class="cta-content">
+                <h2 class="cta-title">Majstor ste ili imate firmu?</h2>
+                <p class="cta-text">Pridružite se Popravka.ba platformi i plasirajte vaše usluge potencijalnim klijentima još danas!</p>
+                <a class="hero-btn" asp-controller="Account" asp-action="Registracija">Registriraj nalog</a>
+            </div>
+            <div class="cta-image">
+                <i class="fa-solid fa-helmet-safety"></i>
+            </div>
+        </div>
+    </section>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            // --- Hero tab selector ---
+            var homeTabInput = document.getElementById('homeAktivniTab');
+            document.querySelectorAll('.hero-tab-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.querySelectorAll('.hero-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    homeTabInput.value = btn.dataset.tab;
+                });
+            });
+        })();
+
+        (function () {
+            const display  = document.getElementById('lokacijaDisplay');
+            const label    = document.getElementById('lokacijaLabel');
+            const input    = document.getElementById('lokacijaValue');
+            const dropdown = document.getElementById('lokacijaDropdown');
+            const search   = document.getElementById('lokacijaSearch');
+            const options  = document.querySelectorAll('.lokacija-option');
+            const groups   = document.querySelectorAll('.lokacija-group-label');
+
+            function closeDropdown() {
+                dropdown.classList.remove('open');
+                search.value = '';
+                options.forEach(o => o.style.display = '');
+                groups.forEach(g => g.style.display = '');
+            }
+
+            display.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle('open');
+                if (dropdown.classList.contains('open')) search.focus();
+                else closeDropdown();
+            });
+
+            document.addEventListener('click', closeDropdown);
+            dropdown.addEventListener('click', e => e.stopPropagation());
+
+            search.addEventListener('input', () => {
+                const q = search.value.toLowerCase();
+                const visibleGroups = new Set();
+
+                options.forEach(opt => {
+                    const match = opt.dataset.label.toLowerCase().includes(q);
+                    opt.style.display = match ? '' : 'none';
+                    if (match) visibleGroups.add(opt.dataset.group);
+                });
+
+                groups.forEach(g => {
+                    g.style.display = visibleGroups.has(g.dataset.group) ? '' : 'none';
+                });
+            });
+
+            options.forEach(opt => {
+                opt.addEventListener('click', () => {
+                    input.value = opt.dataset.value;
+                    label.textContent = opt.dataset.label;
+                    options.forEach(o => o.classList.remove('selected'));
+                    opt.classList.add('selected');
+                    closeDropdown();
+                });
+            });
+        })();
+    </script>
+}

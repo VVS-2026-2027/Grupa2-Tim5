@@ -1,0 +1,35 @@
+﻿@{
+    ViewData["Title"] = "Provjerite email - Popravka.ba";
+}
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="bi bi-envelope-check" style="font-size: 2.5rem; color: var(--bs-primary);"></i>
+                </div>
+
+                <h4 class="card-title mb-2">Provjerite vaš email</h4>
+                <p class="text-muted mb-4">
+                    Ako nalog sa tom email adresom postoji, poslali smo link
+                    za postavljanje nove lozinke. Provjerite i spam folder.
+                </p>
+
+                <div class="d-grid">
+                    <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary">
+                        Nazad na prijavu
+                    </a>
+                </div>
+                @if (TempData["ResetEmail"] is string resetEmail)
+                {
+                    <form method="post" asp-controller="Account" asp-action="ZaboravljenaLozinka" class="mt-3" novalidate>
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="email" value="@resetEmail" />
+                        <button type="submit" class="btn btn-link p-0">Niste dobili email? Pošalji ponovo</button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,1074 @@
+﻿@using PopravkaBa.Web.Models.ViewModels
+@model RegistracijaViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = Model.ActiveTab == PopravkaBa.Web.Models.Enums.AuthTab.Registracija ? "Registracija - Popravka.ba" : "Prijava - Popravka.ba";
+}
+@functions {
+    static string KantonNaziv(PopravkaBa.Domain.Enums.Kanton k)
+        => k.GetType().GetMember(k.ToString()).First()
+            .GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.DisplayAttribute), false)
+            .Cast<System.ComponentModel.DataAnnotations.DisplayAttribute>()
+            .FirstOrDefault()?.Name ?? k.ToString();
+}
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"]</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --blue: #1a6fd4;
+            --blue-dark: #1558aa;
+            --blue-darker: #1e3a8a;
+            --blue-light: #e8f0fb;
+            --text: #1a1a2e;
+            --text-muted: #6b7280;
+            --text-soft: #9ca3af;
+            --border: #e5e7eb;
+            --bg: #f3f4f6;
+            --white: #ffffff;
+            --red: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Noto Sans', system-ui, sans-serif; }
+        html, body { height: 100%; }
+        body { background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+        .split { display: flex; height: 100vh; width: 100%; }
+
+        /* Left panel - fixed in place */
+        .panel-blue {
+    flex: 0 0 55%;
+    background: var(--blue-darker);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 3rem;
+    position: relative;
+    overflow: hidden;
+    height: 100vh;
+}
+.panel-blue::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 60%);
+    pointer-events: none;
+}
+
+.panel-link {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    text-decoration: none;
+    transition: transform 0.2s ease;
+}
+.panel-link:hover {
+    transform: scale(1.03);
+}
+
+.panel-logo {
+
+    max-width: 60%;
+    display: block;
+}
+
+.panel-logo-text {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+}
+        /* Right panel - scrollable */
+        .panel-form { flex: 0 0 45%; display: flex; align-items: center; justify-content: flex-start; padding: 4rem 3rem; flex-direction:column; height: 100vh; overflow-y: auto; }
+        .form-container { width: 100%; max-width: 520px; }
+
+        .card { background: var(--white); padding: 2rem 2.5rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(16,24,40,0.06); border:1px solid rgba(16,24,40,0.03); }
+            .back-link {
+                display: flex;
+                width: 100%;
+                max-width: 520px;
+                text-align:left;
+                color: var(--blue-darker);
+                font-weight: 600;
+                text-decoration: none;
+                margin-bottom: 0.75rem;
+				padding: 0.25rem 0.5rem 0.5rem;
+            }
+        .card-header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:0.5rem; }
+        .card-title { font-family:'Plus Jakarta Sans', sans-serif; font-size:1.25rem; font-weight:800; }
+        .card-sub { color:var(--text-muted); font-size:0.9rem; }
+
+        /* top tabs */
+        .auth-tabs { display:inline-flex; background: #f3f4f6; border-radius:8px; padding:4px; gap:6px; }
+        .auth-tab { padding:6px 12px; border-radius:6px; font-weight:700; color:var(--text-muted); cursor:pointer; }
+        .auth-tab.active { background:#fff; color:var(--blue-darker); box-shadow:0 1px 0 rgba(16,24,40,0.04) inset; }
+
+        /* type selector cards */
+        .type-grid { display:flex; gap:0.6rem; margin:0.6rem 0 1rem 0; }
+        .type-card { flex:1 1 0; height:72px; border-radius:8px; border:1px solid var(--border); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:#fff; cursor:pointer; }
+        .type-card .icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#f3f4f6; color:var(--text-soft); }
+        .type-card.active { border-color: var(--blue); box-shadow: 0 4px 10px rgba(11,95,214,0.06); }
+
+        .two-col { display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; }
+
+        .form-title {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 0.4rem;
+        }
+        .form-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .register-type-group { display:flex; gap:0.5rem; margin:1rem 0 1.25rem 0; }
+        .register-type-btn {
+            flex:1; padding:0.6rem 0.75rem; border-radius:999px; border:1px solid var(--border); background:var(--white); color:var(--text); font-weight:700; cursor:pointer;
+        }
+        .register-type-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+        /* Form fields */
+        .field { margin-bottom: 0.75rem; }
+        .field-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.3rem;
+        }
+
+        .input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .input-icon {
+            position: absolute;
+            left: 0.9rem;
+            width: 18px;
+            height: 18px;
+            color: var(--text-soft);
+            pointer-events: none;
+        }
+        .input-toggle {
+            position: absolute;
+            right: 0.75rem;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            color: var(--text-soft);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+        .input-toggle:hover { color: var(--text-muted); background: var(--bg); }
+        .input-toggle svg { width: 18px; height: 18px; }
+
+        .field-input {
+            width: 100%;
+            padding: 0.5rem 0.75rem 0.5rem 2.6rem;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--text);
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .field-input::placeholder { color: var(--text-soft); }
+        .field-input:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(26, 111, 212, 0.12);
+        }
+        .field-input--password { padding-right: 3rem; }
+
+        .field-error {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--red);
+            margin-top: 0.35rem;
+        }
+
+        /* Submit button */
+        .btn-submit {
+            width: 100%;
+            padding: 0.85rem;
+            background: var(--blue);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            font-family: inherit;
+            margin-top: 0.5rem;
+        }
+        .btn-submit:hover { background: var(--blue-dark); }
+
+        .panel-logo { max-width: 260px; }
+        .panel-logo-text { font-size: 2.25rem; margin-top:0.5rem }
+        .panel-center { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; }
+
+        
+        /* multi-select chips */
+        .multi-select { border: 1px solid var(--border); padding:0.5rem; border-radius:8px; background:#fff; }
+        .ms-chips { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.5rem; }
+        .ms-chip { background:#eef6ff; color:var(--blue-darker); padding:0.25rem 0.5rem; border-radius:999px; font-size:0.85rem; display:inline-flex; gap:0.4rem; align-items:center; }
+        .ms-chip button { border:0;background:transparent; cursor:pointer;color:var(--blue-darker); font-weight:700; }
+        .ms-input { width:100%; border:0; outline:none; padding:0.4rem 0.25rem; }
+        .ms-dropdown { border:1px solid var(--border); max-height:200px; overflow:auto; margin-top:0.35rem; border-radius:6px; display:none; background:#fff; }
+        .ms-item { padding:0.5rem; cursor:pointer; }
+        .ms-item:hover { background:#f3f4f6; }
+
+        
+        .validation-summary {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+        }
+        .validation-summary ul { list-style: none; padding: 0; margin: 0; }
+        .validation-summary li { color: var(--red); font-size: 0.875rem; }
+
+        .form-meta {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 0.75rem;
+        }
+        .form-link {
+            color: var(--blue);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .form-link:hover { text-decoration: underline; }
+
+        .form-footer {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        .form-footer a {
+            color: var(--blue);
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .form-footer a:hover { text-decoration: underline; }
+
+      .error-page-btn {
+          width:60%;
+    display: inline-flex relative;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 2rem;
+    background: #1e6fe0;
+    margin-bottom:auto;
+    color: #ffffff;
+    border-radius: 4px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+        /* plain text inputs (no leading icon) */
+        .field-input--plain { padding-left: 0.9rem; }
+
+        /* ===== Combobox (searchable dropdown, like homepage lokacija) ===== */
+        .combo { position: relative; }
+        .combo + .combo { margin-top: 0.6rem; }
+
+        .combo-control {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            min-height: 42px;
+            padding: 0.35rem 2.2rem 0.35rem 0.6rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--white);
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .combo-control:focus,
+        .combo.open .combo-control {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(26,111,212,0.12);
+        }
+        .combo.disabled .combo-control {
+            background: #f9fafb;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .combo-placeholder { color: var(--text-soft); font-size: 0.9rem; }
+        .combo-placeholder.chosen { color: var(--text); font-weight: 600; }
+        .combo-control.has-value .combo-placeholder { display: none; }
+
+        .combo-caret {
+            position: absolute;
+            right: 0.75rem;
+            width: 16px; height: 16px;
+            color: var(--text-soft);
+            pointer-events: none;
+            transition: transform 0.15s ease;
+        }
+        .combo.open .combo-caret { transform: rotate(180deg); }
+
+        .combo-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: var(--blue-light);
+            color: var(--blue-darker);
+            padding: 0.15rem 0.45rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .combo-chip button {
+            border: 0; background: transparent; cursor: pointer;
+            color: var(--blue-darker); font-weight: 700; line-height: 1;
+            padding: 0; font-size: 0.95rem;
+        }
+
+        .combo-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0; right: 0;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 50;
+            box-shadow: 0 8px 24px rgba(16,24,40,0.12);
+        }
+        .combo.open .combo-dropdown { display: block; }
+
+        .combo-search-wrap {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.45rem 0.7rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .combo-search-wrap svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--text-soft); }
+        .combo-search { width: 100%; border: 0; outline: none; font-size: 0.875rem; font-family: inherit; color: var(--text); }
+
+        .combo-options { max-height: 220px; overflow-y: auto; }
+        .combo-group {
+            padding: 0.45rem 0.85rem 0.2rem;
+            font-size: 0.68rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            color: var(--blue-dark);
+            border-top: 1px solid var(--border);
+            margin-top: 0.2rem;
+        }
+        .combo-group:first-child { border-top: 0; margin-top: 0; }
+        .combo-option {
+            padding: 0.5rem 0.85rem;
+            font-size: 0.875rem; font-weight: 500;
+            cursor: pointer; color: var(--text);
+            transition: background 0.12s ease, color 0.12s ease;
+        }
+        .combo-option:hover { background: #f3f4f6; }
+        .combo-option.selected { background: var(--blue); color: #fff; }
+        .combo-option.hidden, .combo-group.hidden { display: none; }
+        .combo-empty { padding: 0.6rem 0.85rem; font-size: 0.85rem; color: var(--text-soft); }
+
+        /* ===== Logo upload ===== */
+        .logo-drop {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 1rem;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            text-align: center;
+            color: var(--text-soft);
+            cursor: pointer;
+            transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+        }
+        .logo-drop:hover { border-color: var(--blue); background: #f8fbff; }
+        .logo-drop svg { width: 22px; height: 22px; }
+        .logo-drop small { font-size: 0.75rem; }
+        .logo-drop.has-file { border-style: solid; border-color: var(--blue); color: var(--text); background: #f8fbff; }
+        .logo-drop-text { font-size: 0.875rem; font-weight: 600; }
+
+
+			.form-check {
+				display: flex;
+				gap: 0.4rem;
+				align-content: center;
+				margin-top: 0.5rem;
+			}
+
+			
+    </style>
+</head>
+<body>
+    <div class="split">
+        <div class="panel-blue">
+            <a asp-controller="Home" asp-action="Index" class="panel-link" aria-label="Popravka.ba početna">
+                <img src="~/images/logo512.png" alt="Popravka.ba" class="panel-logo" />
+                <span class="panel-logo-text">Popravka.ba</span>
+             </a>
+        </div>
+
+        <div class="panel-form">
+            <a asp-controller="Home" asp-action="Index" class="back-link">Nazad</a>
+            <div class="form-container card">
+                <div class="card-header">
+                   
+                </div>
+                <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem;">
+                    <div class="auth-tabs">
+                        <div id="tab-login" class="auth-tab @(Model.ActiveTab==PopravkaBa.Web.Models.Enums.AuthTab.Prijava?"active":"")" onclick="showTab('login')">Prijava</div>
+                        <div id="tab-register" class="auth-tab @(Model.ActiveTab==PopravkaBa.Web.Models.Enums.AuthTab.Registracija?"active":"")" onclick="showTab('register')">Registracija</div>
+                    </div>
+                </div>
+
+                <div id="login-panel" style="display:@(Model.ActiveTab==PopravkaBa.Web.Models.Enums.AuthTab.Prijava?"block":"none");">
+                    <h1 class="form-title">Dobrodošli nazad</h1>
+                    <p class="form-subtitle">Unesite vaše podatke za pristup nalogu.</p>
+
+                    <form asp-action="Login" asp-controller="Account" method="post" novalidate>
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+                        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+                        <div class="field">
+                            <label asp-for="Login.EmailUsername" class="field-label">E-mail adresa ili korisničko ime</label>
+                            <div class="input-wrap">
+                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                    <polyline points="22,6 12,13 2,6"></polyline>
+                                </svg>
+                                <input asp-for="Login.EmailUsername" class="field-input" placeholder="vas@email.com" autocomplete="username" />
+                            </div>
+                            <span asp-validation-for="Login.EmailUsername" class="field-error"></span>
+                        </div>
+
+                        <div class="field">
+                            <label asp-for="Login.Lozinka" class="field-label">Lozinka</label>
+                            <div class="input-wrap">
+                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                                <input asp-for="Login.Lozinka" id="lozinkaInput" type="password" class="field-input field-input--password" placeholder="••••••••" autocomplete="current-password" />
+                                <button type="button" class="input-toggle" onclick="togglePassword()" aria-label="Prikaži lozinku">
+                                    <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                            <span asp-validation-for="Login.Lozinka" class="field-error"></span>
+                            <div class="form-check">
+                                <input asp-for="Login.ZapamtiMe" class="form-check-input" />
+                                <label asp-for="Login.ZapamtiMe" class="field-label">Zapamti me</label>
+                            </div>
+                            <div class="form-meta">
+                                <a asp-controller="Account" asp-action="ZaboravljenaLozinka" class="form-link">Zaboravili ste lozinku?</a>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit">Prijavi se</button>
+                    </form>
+
+                    <p class="form-footer">Nemate račun? <a asp-controller="Account" asp-action="Registracija">Registrujte se</a></p>
+                </div>
+
+                @{
+                    // Koji je tip registracije aktivan (npr. nakon neuspjelog POST-a vrati se na isti tab).
+                    var aktivniRegTip = Model.FirmaDTO != null ? "firma"
+                        : Model.MajstorDTO != null ? "majstor"
+                        : "klijent";
+                }
+                <div id="register-panel" data-aktivni-tip="@aktivniRegTip" style="display:@(Model.ActiveTab==PopravkaBa.Web.Models.Enums.AuthTab.Registracija?"block":"none");">
+                    <h1 class="form-title">Kreirajte nalog</h1>
+                    <p class="form-subtitle">Popunite podatke i počnite koristiti platformu.</p>
+
+                    <label style="font-weight:700;margin-bottom:6px;display:block;color:var(--text);">Prijavljujem se kao...</label>
+                    <div class="type-grid">
+                        <div id="card-klijent" class="type-card @(aktivniRegTip == "klijent" ? "active" : "")" onclick="showRegisterType('klijent')"><div class="icon">👤</div><div style="font-size:0.85rem;color:var(--text-soft);">Klijent</div></div>
+                        <div id="card-majstor" class="type-card @(aktivniRegTip == "majstor" ? "active" : "")" onclick="showRegisterType('majstor')"><div class="icon">🔧</div><div style="font-size:0.85rem;color:var(--text-soft);">Majstor</div></div>
+                        <div id="card-firma" class="type-card @(aktivniRegTip == "firma" ? "active" : "")" onclick="showRegisterType('firma')"><div class="icon">🏢</div><div style="font-size:0.85rem;color:var(--text-soft);">Firma</div></div>
+                    </div>
+
+                    @{
+                        var nadkategorije = Model.Kategorije.Where(k => k.NadkategorijaID == null).OrderBy(k => k.Naziv).ToList();
+                        var potkategorije = Model.Kategorije.Where(k => k.NadkategorijaID != null).OrderBy(k => k.Naziv).ToList();
+                        var mjestaPoKantonu = Model.Mjesta.GroupBy(m => m.Kanton).OrderBy(g => (int)g.Key).ToList();
+                    }
+
+                    <!-- Klijent form -->
+                    <div id="reg-klijent" style="display:@(aktivniRegTip == "klijent" ? "block" : "none");">
+                        <form asp-controller="Account" asp-action="RegistracijaKlijenta" method="post" novalidate>
+                            @Html.AntiForgeryToken()
+                            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+                            <div class="field">
+                                <label asp-for="KlijentDTO.KorisnickoIme" class="field-label">Korisničko ime</label>
+                                <input asp-for="KlijentDTO.KorisnickoIme" class="field-input field-input--plain" autocomplete="username" />
+                                <span asp-validation-for="KlijentDTO.KorisnickoIme" class="field-error"></span>
+                            </div>
+                            <div class="two-col">
+                                <div class="field"><label asp-for="KlijentDTO.Ime" class="field-label">Ime</label><input asp-for="KlijentDTO.Ime" class="field-input field-input--plain" /><span asp-validation-for="KlijentDTO.Ime" class="field-error"></span></div>
+                                <div class="field"><label asp-for="KlijentDTO.Prezime" class="field-label">Prezime</label><input asp-for="KlijentDTO.Prezime" class="field-input field-input--plain" /><span asp-validation-for="KlijentDTO.Prezime" class="field-error"></span></div>
+                            </div>
+                            <div class="field"><label asp-for="KlijentDTO.Email" class="field-label">E-mail adresa</label><input asp-for="KlijentDTO.Email" class="field-input field-input--plain" /><span asp-validation-for="KlijentDTO.Email" class="field-error"></span></div>
+                            <div class="two-col">
+                                <div class="field"><label asp-for="KlijentDTO.Lozinka" class="field-label">Lozinka</label><input asp-for="KlijentDTO.Lozinka" class="field-input field-input--plain" type="password" /><span asp-validation-for="KlijentDTO.Lozinka" class="field-error"></span></div>
+                                <div class="field"><label asp-for="KlijentDTO.PotvrdaLozinke" class="field-label">Potvrda lozinke</label><input asp-for="KlijentDTO.PotvrdaLozinke" class="field-input field-input--plain" type="password" /><span asp-validation-for="KlijentDTO.PotvrdaLozinke" class="field-error"></span></div>
+                            </div>
+
+                            <div class="field">
+                                <label class="field-label">Lokacija</label>
+                                <div class="combo" data-combo="multi" data-max="1" data-name="KlijentDTO.MjestaID">
+                                    <div class="combo-control" tabindex="0">
+                                        <div class="combo-chips"></div>
+                                        <span class="combo-placeholder">Odaberite lokaciju...</span>
+                                        <svg class="combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                    <div class="combo-dropdown">
+                                        <div class="combo-search-wrap">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                            <input type="text" class="combo-search" placeholder="Pretraži mjesto..." autocomplete="off" 
+                                                   oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()" />
+                                        </div>
+                                        <div class="combo-options">
+                                            @foreach (var grupa in mjestaPoKantonu)
+                                            {
+                                                var kantonNaziv = KantonNaziv(grupa.Key);
+                                                <div class="combo-group" data-group="@kantonNaziv">@kantonNaziv</div>
+                                                @foreach (var m in grupa.OrderBy(m => m.Naziv))
+                                                {
+                                                    <div class="combo-option" data-value="@m.MjestoID" data-label="@m.Naziv" data-group="@kantonNaziv">@m.Naziv</div>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="combo-hidden"></div>
+                                </div>
+                                <span asp-validation-for="KlijentDTO.MjestaID" class="field-error"></span>
+                            </div>
+
+                            <button type="submit" class="btn-submit">Registracija</button>
+                        </form>
+                    </div>
+
+                    <!-- Majstor form -->
+                    <div id="reg-majstor" style="display:@(aktivniRegTip == "majstor" ? "block" : "none");">
+                        <form asp-controller="Account" asp-action="RegistracijaMajstora" method="post" novalidate>
+                            @Html.AntiForgeryToken()
+                            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+                            <div class="field">
+                                <label asp-for="MajstorDTO.KorisnickoIme" class="field-label">Korisničko ime</label>
+                                <input asp-for="MajstorDTO.KorisnickoIme" class="field-input field-input--plain" autocomplete="username" oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()" />
+                                <span asp-validation-for="MajstorDTO.KorisnickoIme" class="field-error"></span>
+                            </div>
+                            <div class="two-col">
+                                <div class="field"><label asp-for="MajstorDTO.Ime" class="field-label">Ime</label><input asp-for="MajstorDTO.Ime" class="field-input field-input--plain" /><span asp-validation-for="MajstorDTO.Ime" class="field-error" 
+                                oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()"></span></div>
+                                <div class="field"><label asp-for="MajstorDTO.Prezime" class="field-label">Prezime</label><input asp-for="MajstorDTO.Prezime" class="field-input field-input--plain" /><span asp-validation-for="MajstorDTO.Prezime" class="field-error"></span></div>
+                            </div>
+                            <div class="field"><label asp-for="MajstorDTO.Email" class="field-label">E-mail adresa</label><input asp-for="MajstorDTO.Email" class="field-input field-input--plain" /><span asp-validation-for="MajstorDTO.Email" class="field-error"></span></div>
+                            <div class="two-col">
+                                <div class="field"><label asp-for="MajstorDTO.Lozinka" class="field-label">Lozinka</label><input asp-for="MajstorDTO.Lozinka" class="field-input field-input--plain" type="password" /><span asp-validation-for="MajstorDTO.Lozinka" class="field-error"></span></div>
+                                <div class="field"><label asp-for="MajstorDTO.PotvrdaLozinke" class="field-label">Potvrda lozinke</label><input asp-for="MajstorDTO.PotvrdaLozinke" class="field-input field-input--plain" type="password" /><span asp-validation-for="MajstorDTO.PotvrdaLozinke" class="field-error"></span></div>
+                            </div>
+
+                            <div class="field">
+                                <label class="field-label">Zanimanje (max 5)</label>
+                                <div class="cascade" data-max="5" data-name="MajstorDTO.KategorijeID">
+                                    <div class="combo" data-combo="single" data-role="nad">
+                                        <div class="combo-control" tabindex="0">
+                                            <span class="combo-placeholder">Odaberite oblast...</span>
+                                            <svg class="combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                        </div>
+                                        <div class="combo-dropdown">
+                                            <div class="combo-search-wrap">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                                <input type="text" class="combo-search" placeholder="Pretraži oblast..." autocomplete="off" 
+                                                       oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()" />
+                                            </div>
+                                            <div class="combo-options">
+                                                @foreach (var nad in nadkategorije)
+                                                {
+                                                    <div class="combo-option" data-value="@nad.ID" data-label="@nad.Naziv">@nad.Naziv</div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="combo disabled" data-combo="multi" data-role="pot">
+                                        <div class="combo-control" tabindex="0">
+                                            <div class="combo-chips"></div>
+                                            <span class="combo-placeholder">Prvo odaberite oblast</span>
+                                            <svg class="combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                        </div>
+                                        <div class="combo-dropdown">
+                                            <div class="combo-search-wrap">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                                <input type="text" class="combo-search" placeholder="Pretraži kategoriju..." autocomplete="off"
+                                                       oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()" />
+                                            </div>
+                                            <div class="combo-options">
+                                                @foreach (var k in potkategorije)
+                                                {
+                                                    <div class="combo-option" data-value="@k.ID" data-label="@k.Naziv" data-parent="@k.NadkategorijaID">@k.Naziv</div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="combo-hidden"></div>
+                                </div>
+                                <span asp-validation-for="MajstorDTO.KategorijeID" class="field-error"></span>
+                            </div>
+
+                            <div class="field">
+                                <label class="field-label">Lokacija (max 3)</label>
+                                <div class="combo" data-combo="multi" data-max="3" data-name="MajstorDTO.MjestaID">
+                                    <div class="combo-control" tabindex="0">
+                                        <div class="combo-chips"></div>
+                                        <span class="combo-placeholder">Odaberite lokaciju...</span>
+                                        <svg class="combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                    <div class="combo-dropdown">
+                                        <div class="combo-search-wrap">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                            <input type="text" class="combo-search" placeholder="Pretraži mjesto..." autocomplete="off" 
+                                                   oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()" />
+                                        </div>
+                                        <div class="combo-options">
+                                            @foreach (var grupa in mjestaPoKantonu)
+                                            {
+                                                var kantonNaziv = KantonNaziv(grupa.Key);
+                                                <div class="combo-group" data-group="@kantonNaziv">@kantonNaziv</div>
+                                                @foreach (var m in grupa.OrderBy(m => m.Naziv))
+                                                {
+                                                    <div class="combo-option" data-value="@m.MjestoID" data-label="@m.Naziv" data-group="@kantonNaziv">@m.Naziv</div>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="combo-hidden"></div>
+                                </div>
+                                <span asp-validation-for="MajstorDTO.MjestaID" class="field-error"></span>
+                            </div>
+
+                            <button type="submit" class="btn-submit">Registracija</button>
+                        </form>
+                    </div>
+
+                    <!-- Firma form -->
+                    <div id="reg-firma" style="display:@(aktivniRegTip == "firma" ? "block" : "none");">
+                        <form asp-controller="Account" asp-action="RegistracijaFirme" method="post" enctype="multipart/form-data" novalidate>
+                            @Html.AntiForgeryToken()
+                            <div asp-validation-summary="ModelOnly" class="validation-summary"></div>
+
+                            <div class="field">
+                                <label asp-for="FirmaDTO.KorisnickoIme" class="field-label">Korisničko ime</label>
+                                <input asp-for="FirmaDTO.KorisnickoIme" class="field-input field-input--plain" autocomplete="username" />
+                                <span asp-validation-for="FirmaDTO.KorisnickoIme" class="field-error"></span>
+                            </div>
+                            <div class="field"><label asp-for="FirmaDTO.NazivFirme" class="field-label">Naziv firme</label><input asp-for="FirmaDTO.NazivFirme" class="field-input field-input--plain" /><span asp-validation-for="FirmaDTO.NazivFirme" class="field-error"></span></div>
+                            <div class="field"><label asp-for="FirmaDTO.Email" class="field-label">E-mail adresa</label><input asp-for="FirmaDTO.Email" class="field-input field-input--plain" /><span asp-validation-for="FirmaDTO.Email" class="field-error"></span></div>
+                            <div class="two-col">
+                                <div class="field"><label asp-for="FirmaDTO.Lozinka" class="field-label">Lozinka</label><input asp-for="FirmaDTO.Lozinka" class="field-input field-input--plain" type="password" /><span asp-validation-for="FirmaDTO.Lozinka" class="field-error"></span></div>
+                                <div class="field"><label asp-for="FirmaDTO.PotvrdaLozinke" class="field-label">Potvrda lozinke</label><input asp-for="FirmaDTO.PotvrdaLozinke" class="field-input field-input--plain" type="password" /><span asp-validation-for="FirmaDTO.PotvrdaLozinke" class="field-error"></span></div>
+                            </div>
+                            <div class="field"><label asp-for="FirmaDTO.VelicinaFirme" class="field-label">Veličina firme</label><select asp-for="FirmaDTO.VelicinaFirme" asp-items="Html.GetEnumSelectList<PopravkaBa.Domain.Enums.VelicinaFirme>()" class="field-input field-input--plain"></select><span asp-validation-for="FirmaDTO.VelicinaFirme" class="field-error"></span></div>
+                            <div class="field"><label asp-for="FirmaDTO.WebStranica" class="field-label">Web stranica <span style="color:var(--text-soft);font-weight:400;">(opcionalno)</span></label><input asp-for="FirmaDTO.WebStranica" class="field-input field-input--plain" placeholder="https://..." /><span asp-validation-for="FirmaDTO.WebStranica" class="field-error"></span></div>
+
+                            <div class="field">
+                                <label class="field-label">Djelatnost (max 5)</label>
+                                <div class="cascade" data-max="5" data-name="FirmaDTO.KategorijeID">
+                                    <div class="combo" data-combo="single" data-role="nad">
+                                        <div class="combo-control" tabindex="0">
+                                            <span class="combo-placeholder">Odaberite oblast...</span>
+                                            <svg class="combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                        </div>
+                                        <div class="combo-dropdown">
+                                            <div class="combo-search-wrap">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                                <input type="text" class="combo-search" placeholder="Pretraži oblast..."
+                                                       oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()" />
+                                            </div>
+                                            <div class="combo-options">
+                                                @foreach (var nad in nadkategorije)
+                                                {
+                                                    <div class="combo-option" data-value="@nad.ID" data-label="@nad.Naziv">@nad.Naziv</div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="combo disabled" data-combo="multi" data-role="pot">
+                                        <div class="combo-control" tabindex="0">
+                                            <div class="combo-chips"></div>
+                                            <span class="combo-placeholder">Prvo odaberite oblast</span>
+                                            <svg class="combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                        </div>
+                                        <div class="combo-dropdown">
+                                            <div class="combo-search-wrap">
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                                <input type="text" class="combo-search" placeholder="Pretraži kategoriju..."
+                                                oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()"
+                                                />
+                                            </div>
+                                            <div class="combo-options">
+                                                @foreach (var k in potkategorije)
+                                                {
+                                                    <div class="combo-option" data-value="@k.ID" data-label="@k.Naziv" data-parent="@k.NadkategorijaID">@k.Naziv</div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="combo-hidden"></div>
+                                </div>
+                                <span asp-validation-for="FirmaDTO.KategorijeID" class="field-error"></span>
+                            </div>
+
+                            <div class="field">
+                                <label class="field-label">Lokacija (max 3)</label>
+                                <div class="combo" data-combo="multi" data-max="3" data-name="FirmaDTO.MjestaID">
+                                    <div class="combo-control" tabindex="0">
+                                        <div class="combo-chips"></div>
+                                        <span class="combo-placeholder">Odaberite lokaciju...</span>
+                                        <svg class="combo-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    </div>
+                                    <div class="combo-dropdown">
+                                        <div class="combo-search-wrap">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                            <input type="text" class="combo-search" placeholder="Pretraži mjesto..."                                               oninput="this.value = this.value.trimStart()" onchange="this.value = this.value.trim()"           />
+                                        </div>
+                                        <div class="combo-options">
+                                            @foreach (var grupa in mjestaPoKantonu)
+                                            {
+                                                var kantonNaziv = KantonNaziv(grupa.Key);
+                                                <div class="combo-group" data-group="@kantonNaziv">@kantonNaziv</div>
+                                                @foreach (var m in grupa.OrderBy(m => m.Naziv))
+                                                {
+                                                    <div class="combo-option" data-value="@m.MjestoID" data-label="@m.Naziv" data-group="@kantonNaziv">@m.Naziv</div>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="combo-hidden"></div>
+                                </div>
+                                <span asp-validation-for="FirmaDTO.MjestaID" class="field-error"></span>
+                            </div>
+
+                            <div class="field">
+                                <label class="field-label">Logo / fotografija firme <span style="color:var(--text-soft);font-weight:400;">(opcionalno)</span></label>
+                                <label class="logo-drop" id="logoDrop">
+                                    <input type="file" name="logo" id="logoInput" accept=".jpg,.jpeg,.png,image/jpeg,image/png" hidden />
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                    <span class="logo-drop-text" id="logoDropText">Kliknite za upload</span>
+                                    <small>jpg, png – max 5MB</small>
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn-submit">Registracija</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+    
+    </div>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('lozinkaInput');
+            const icon = document.getElementById('eyeIcon');
+            const isHidden = input.type === 'password';
+
+            input.type = isHidden ? 'text' : 'password';
+
+            // swap icon between "eye" and "eye-off"
+            if (isHidden) {
+                icon.innerHTML = `
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                `;
+            } else {
+                icon.innerHTML = `
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                `;
+            }
+        }
+    </script>
+    <script>
+        // ===== Searchable comboboxes (lokacija + kaskadno zanimanje) =====
+        (function () {
+            function closeAll(except) {
+                document.querySelectorAll('.combo.open').forEach(c => { if (c !== except) c.classList.remove('open'); });
+            }
+            document.addEventListener('click', (e) => { if (!e.target.closest('.combo')) closeAll(); });
+
+            // Show/hide options based on search text, parent filter and already-selected values.
+            function filterOptions(combo, { query = '', parent = null, selected = null } = {}) {
+                const q = query.toLowerCase();
+                const groups = combo.querySelectorAll('.combo-group');
+                const options = combo.querySelectorAll('.combo-option');
+                const visibleGroups = new Set();
+                let anyVisible = false;
+
+                options.forEach(opt => {
+                    let vis = opt.dataset.label.toLowerCase().includes(q);
+                    if (parent != null && opt.dataset.parent !== String(parent)) vis = false;
+                    if (selected && selected.has(opt.dataset.value)) vis = false;
+                    opt.classList.toggle('hidden', !vis);
+                    if (vis) { anyVisible = true; if (opt.dataset.group) visibleGroups.add(opt.dataset.group); }
+                });
+                groups.forEach(g => g.classList.toggle('hidden', !visibleGroups.has(g.dataset.group)));
+
+                let empty = combo.querySelector('.combo-empty');
+                if (!anyVisible) {
+                    if (!empty) {
+                        empty = document.createElement('div');
+                        empty.className = 'combo-empty';
+                        empty.textContent = 'Nema rezultata.';
+                        combo.querySelector('.combo-options').appendChild(empty);
+                    }
+                    empty.style.display = '';
+                } else if (empty) {
+                    empty.style.display = 'none';
+                }
+            }
+
+            function wireToggle(combo, onOpen) {
+                const control = combo.querySelector('.combo-control');
+                const search = combo.querySelector('.combo-search');
+                control.addEventListener('click', (e) => {
+                    if (e.target.closest('.combo-chip')) return;
+                    if (combo.classList.contains('disabled')) return;
+                    const willOpen = !combo.classList.contains('open');
+                    closeAll(combo);
+                    combo.classList.toggle('open', willOpen);
+                    if (willOpen) { if (onOpen) onOpen(); if (search) search.focus(); }
+                });
+            }
+
+            // Multi-select combo with chips + one hidden <input> per selected value.
+            function createMultiCombo(combo, { name, hiddenContainer, max, getParent }) {
+                const control = combo.querySelector('.combo-control');
+                const chipsWrap = combo.querySelector('.combo-chips');
+                const search = combo.querySelector('.combo-search');
+                const selected = new Map(); // value -> label
+
+                function refilter() {
+                    filterOptions(combo, { query: search ? search.value : '', parent: getParent ? getParent() : null, selected });
+                }
+
+                function sync() {
+                    chipsWrap.innerHTML = '';
+                    hiddenContainer.innerHTML = '';
+                    selected.forEach((label, value) => {
+                        const chip = document.createElement('span');
+                        chip.className = 'combo-chip';
+                        const text = document.createElement('span');
+                        text.textContent = label;
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.setAttribute('aria-label', 'Ukloni');
+                        btn.textContent = '×';
+                        btn.addEventListener('click', (e) => { e.stopPropagation(); selected.delete(value); sync(); });
+                        chip.appendChild(text);
+                        chip.appendChild(btn);
+                        chipsWrap.appendChild(chip);
+
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = name;
+                        input.value = value;
+                        hiddenContainer.appendChild(input);
+                    });
+                    control.classList.toggle('has-value', selected.size > 0);
+                    refilter();
+                }
+
+                combo.querySelectorAll('.combo-option').forEach(opt => {
+                    opt.addEventListener('click', () => {
+                        const value = opt.dataset.value;
+                        if (selected.has(value)) return;
+                        if (max && selected.size >= max) return;
+                        selected.set(value, opt.dataset.label);
+                        if (search) search.value = '';
+                        sync();
+                    });
+                });
+
+                if (search) search.addEventListener('input', refilter);
+                wireToggle(combo, refilter);
+                return { refilter };
+            }
+
+            // Single-select combo; shows chosen label in place of the placeholder.
+            function createSingleCombo(combo, { onSelect }) {
+                const placeholder = combo.querySelector('.combo-placeholder');
+                const search = combo.querySelector('.combo-search');
+
+                function refilter() { filterOptions(combo, { query: search ? search.value : '' }); }
+
+                combo.querySelectorAll('.combo-option').forEach(opt => {
+                    opt.addEventListener('click', () => {
+                        combo.querySelectorAll('.combo-option').forEach(o => o.classList.remove('selected'));
+                        opt.classList.add('selected');
+                        placeholder.textContent = opt.dataset.label;
+                        placeholder.classList.add('chosen');
+                        combo.classList.remove('open');
+                        if (onSelect) onSelect(opt.dataset.value, opt.dataset.label);
+                    });
+                });
+
+                if (search) search.addEventListener('input', refilter);
+                wireToggle(combo, refilter);
+            }
+
+            // Cascading "zanimanje": pick Nadkategorija, then its specific Kategorije.
+            function setupCascade(cascade) {
+                const nadCombo = cascade.querySelector('.combo[data-role="nad"]');
+                const potCombo = cascade.querySelector('.combo[data-role="pot"]');
+                const potPlaceholder = potCombo.querySelector('.combo-placeholder');
+                const hidden = cascade.querySelector('.combo-hidden');
+                let currentParent = null;
+
+                const multi = createMultiCombo(potCombo, {
+                    name: cascade.dataset.name,
+                    hiddenContainer: hidden,
+                    max: parseInt(cascade.dataset.max, 10) || Infinity,
+                    getParent: () => currentParent
+                });
+
+                createSingleCombo(nadCombo, {
+                    onSelect: (value) => {
+                        currentParent = value;
+                        potCombo.classList.remove('disabled');
+                        potPlaceholder.textContent = 'Odaberite kategoriju...';
+                        multi.refilter();
+                    }
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('.cascade').forEach(setupCascade);
+
+                // Standalone multi combos (lokacija); skip the ones owned by a cascade.
+                document.querySelectorAll('.combo[data-combo="multi"]').forEach(combo => {
+                    if (combo.dataset.role) return;
+                    createMultiCombo(combo, {
+                        name: combo.dataset.name,
+                        hiddenContainer: combo.querySelector('.combo-hidden'),
+                        max: parseInt(combo.dataset.max, 10) || Infinity
+                    });
+                });
+
+                // Logo upload: prikaži ime odabranog fajla.
+                const logoInput = document.getElementById('logoInput');
+                if (logoInput) {
+                    const drop = document.getElementById('logoDrop');
+                    const text = document.getElementById('logoDropText');
+                    logoInput.addEventListener('change', () => {
+                        if (logoInput.files && logoInput.files.length) {
+                            text.textContent = logoInput.files[0].name;
+                            drop.classList.add('has-file');
+                        } else {
+                            text.textContent = 'Kliknite za upload';
+                            drop.classList.remove('has-file');
+                        }
+                    });
+                }
+            });
+        })();
+    </script>
+    <script>
+        function showTab(tab) {
+            document.getElementById('login-panel').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('register-panel').style.display = tab === 'register' ? 'block' : 'none';
+            document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+            document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+        }
+
+        function showRegisterType(type) {
+            document.getElementById('reg-klijent').style.display = type === 'klijent' ? 'block' : 'none';
+            document.getElementById('reg-majstor').style.display = type === 'majstor' ? 'block' : 'none';
+            document.getElementById('reg-firma').style.display = type === 'firma' ? 'block' : 'none';
+
+            // toggle active state on type cards
+            document.getElementById('card-klijent').classList.toggle('active', type === 'klijent');
+            document.getElementById('card-majstor').classList.toggle('active', type === 'majstor');
+            document.getElementById('card-firma').classList.toggle('active', type === 'firma');
+        }
+    </script>
+
+    @* Ova stranica koristi Layout = null pa _Layout ne ubacuje site.js — uključujemo ga ručno
+       radi zaštite od dvostrukog slanja forme (double POST). *@
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @section Scripts {
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js" integrity="" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js" integrity="" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate-unobtrusive/3.2.12/jquery.validate.unobtrusive.min.js" integrity="" crossorigin="anonymous"></script>
+            <script>
+                // ===== Global trimming for all text inputs =====
+                (function () {
+                // Trim leading whitespace live as the user types (no trailing — they may be mid-word).
+                document.addEventListener('input', function (e) {
+                const el = e.target;
+                if (!el.matches('input[type="text"], input[type="email"], input:not([type])')) return;
+                if (el.classList.contains('combo-search')) return;  // search boxes handle their own
+                const start = el.selectionStart;
+                const trimmed = el.value.replace(/^\s+/, '');
+                if (trimmed !== el.value) {
+                const diff = el.value.length - trimmed.length;
+                el.value = trimmed;
+                el.setSelectionRange(Math.max(0, start - diff), Math.max(0, start - diff));
+                }
+                });
+
+                // Full trim (both ends) on blur and right before submit.
+                function fullTrim(el) { el.value = el.value.trim(); }
+
+                document.addEventListener('blur', function (e) {
+                const el = e.target;
+                if (el.matches('input[type="text"], input[type="email"], input:not([type])')
+                && !el.classList.contains('combo-search')) {
+                fullTrim(el);
+                }
+                }, true);  // capture phase — blur doesn't bubble
+
+                document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function () {
+                form.querySelectorAll('input[type="text"], input[type="email"], input:not([type])')
+                .forEach(el => { if (!el.classList.contains('combo-search')) fullTrim(el); });
+                });
+                });
+                })();
+            </script>
+    }
+</body>
+</html>

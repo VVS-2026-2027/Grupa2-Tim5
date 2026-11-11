@@ -1,0 +1,32 @@
+﻿@model ErrorViewModel?
+@{
+    ViewData["Title"] = "Greška";
+}
+
+<div class="error-page">
+    <div class="error-page-inner">
+        <h1 class="error-page-code">Greška</h1>
+        <h2 class="error-page-title">Došlo je do greške</h2>
+        <p class="error-page-text">Molimo pokušajte ponovo.</p>
+
+        @if (Model?.ShowRequestId == true)
+        {
+            <p><strong>Request ID:</strong> <code>@Model.RequestId</code></p>
+        }
+
+        @if (!string.IsNullOrEmpty(Model?.ExceptionMessage))
+        {
+            <div class="error-details">
+                <p><strong>Greška:</strong> @Model.ExceptionMessage</p>
+                @if (!string.IsNullOrEmpty(Model.StackTrace))
+                {
+                    <pre>@Model.StackTrace</pre>
+                }
+            </div>
+        }
+
+        <a asp-controller="Home" asp-action="Index" class="error-page-btn">
+            Nazad na početnu
+        </a>
+    </div>
+</div>

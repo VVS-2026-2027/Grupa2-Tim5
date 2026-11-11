@@ -1,0 +1,1473 @@
+@model PopravkaBa.Web.Models.ViewModels.ProfilViewModel
+@using PopravkaBa.Domain.Enums
+@{
+    ViewData["Title"] = Model.DisplayName + " - Profil";
+    bool jeIzvrsilac = Model.Uloga == "Majstor" || Model.Uloga == "Firma";
+    bool jeKlijent = Model.Uloga == "Klijent";
+
+    string tipIsplateLabel(TipIsplate t) => t switch
+    {
+        TipIsplate.PoSatu      => "/h",
+        TipIsplate.Jednokratno => "",
+        TipIsplate.Sedmicno    => "/sedm.",
+        TipIsplate.Mjesecno    => "/mj.",
+        _ => ""
+    };
+
+    string statusLabel(Status s) => s switch
+    {
+        Status.Aktivan    => "Aktivan",
+        Status.Neaktivan  => "Zatvoren",
+        Status.Isporuceno => "Završen",
+        _ => s.ToString()
+    };
+
+    // MaxZaposlenih == 0 znači "bez gornje granice" (npr. 100+)
+    string ZaposleniRaspon(int min, int max) => max > 0 ? $"{min} - {max}" : $"{min}+";
+}
+
+<div class="profil-page">
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-circle-check me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (jeIzvrsilac)
+    {
+        <!-- ===================== IZVRŠILAC (Majstor / Firma) ===================== -->
+        <div class="profil-hero-card">
+            <div class="profil-banner"></div>
+            <div class="profil-hero-body">
+                <div class="profil-hero-main">
+                    @if (!string.IsNullOrEmpty(Model.Slika))
+                    {
+                        <img src="@Model.Slika" alt="@Model.DisplayName" class="profil-avatar" />
+                    }
+                    else
+                    {
+                        <span class="profil-avatar profil-avatar--fallback"><i class="bi bi-person-fill"></i></span>
+                    }
+                    <div class="profil-hero-info">
+                        <h1>
+                            @Model.DisplayName
+                            @if (Model.JeVerificiran)
+                            {
+                                <i class="bi bi-patch-check-fill profil-verified" title="Verificiran nalog"></i>
+                            }
+                        </h1>
+                        @if (!string.IsNullOrEmpty(Model.Zanimanje))
+                        {
+                            <p class="profil-zanimanje">@Model.Zanimanje</p>
+                        }
+                        @if (!string.IsNullOrEmpty(Model.Lokacija))
+                        {
+                            <p class="profil-lokacija"><i class="bi bi-geo-alt"></i> @Model.Lokacija</p>
+                        }
+                    </div>
+                    <div class="profil-hero-akcije">
+                        @if (Model.JeVlasnik)
+                        {
+                           
+                            <a asp-controller="Profil" asp-action="Edit" class="profil-btn profil-btn--primary">
+                                <i class="bi bi-pencil-square"></i> Uredi profil
+                            </a>
+                            @if (!Model.JeVerificiran)
+                            {
+                                if(!Model.JeVerificiranEmail){
+                                <form asp-controller="Account" asp-action="PosaljiVerifikaciju" method="post" class="profil-btn profil-btn--outline">
+                                     <button type="submit" style="text-decoration:none;border:none;background:none;">
+                                        <i class="bi bi-patch-check"></i> Podnesi verifikaciju
+                                    </button>
+                                </form> 
+                                }
+                                else{
+                                <a asp-controller="Verification" asp-action="Index" class="profil-btn profil-btn--outline">
+                                    <i class="bi bi-patch-check"></i> Podnesi verifikaciju
+                                </a>}
+                            }
+                            else{
+                               <a asp-controller="ObjaviOglas" asp-action="Index" class="profil-btn profil-btn--outline">
+                                    <svg width="1em" height="1em" viewBox="0 0 12 12" fill="none" stroke="currentColor"
+                                         stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+                                         style="vertical-align:-0.125em;">
+                                        <line x1="6" y1="2.5" x2="6" y2="9.5"></line>
+                                        <line x1="2.5" y1="6" x2="9.5" y2="6"></line>
+                                    </svg>
+                                    Objavi oglas
+                                </a>
+                                                             
+                            }
+                            
+                        }
+                        else
+                        {
+                            if (!string.IsNullOrEmpty(Model.Email))
+                            {
+                                <a href="mailto:@Model.Email" class="profil-btn profil-btn--primary">Kontaktiraj</a>
+                            }
+                            @* Admin može urediti bilo koji profil *@
+                            if (User.IsInRole("Administrator"))
+                            {
+                                <a asp-controller="Profil" asp-action="Edit" asp-route-username="@Model.Username" class="profil-btn profil-btn--outline">
+                                    <i class="bi bi-pencil-square"></i> Uredi profil
+                                </a>
+                            }
+                        }
+                    </div>
+                </div>
+                <div class="profil-stats">
+                    <div class="profil-stat">
+                        <span class="profil-stat-value"><i class="bi bi-star-fill profil-star"></i> @Model.ProsjecnaOcjena.ToString("0.0")</span>
+                        <span class="profil-stat-label">Ocjena</span>
+                    </div>
+                    <div class="profil-stat">
+                        <span class="profil-stat-value">@Model.BrojRecenzija</span>
+                        <span class="profil-stat-label">Recenzija</span>
+                    </div>
+                    <div class="profil-stat">
+                        <span class="profil-stat-value">@Model.BrojZavrsenihPoslova</span>
+                        <span class="profil-stat-label">Poslova</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="profil-grid">
+            <div class="profil-col-main">
+
+                <div class="profil-card">
+                    <h2 class="profil-card-title">O meni</h2>
+                    @if (!string.IsNullOrWhiteSpace(Model.Opis))
+                    {
+                        <p class="profil-opis">@Model.Opis</p>
+                    }
+                    else
+                    {
+                        <p class="profil-prazno">Korisnik još  nije dodao opis.</p>
+                    }
+                </div>
+
+                <div class="profil-card">
+                    <h2 class="profil-card-title">Vještine i usluge</h2>
+                    @if (Model.Vjestine.Any())
+                    {
+                        <div class="profil-chips">
+                            @foreach (var v in Model.Vjestine)
+                            {
+                                <span class="profil-chip">@v</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="profil-prazno">Nema unesenih vještina.</p>
+                    }
+                </div>
+
+                <div class="profil-card">
+                    <h2 class="profil-card-title">Opći oglas usluga</h2>
+                    @if (Model.OglasiMajstora.Any())
+                    {
+                        <div class="profil-oglasi">
+                            @foreach (var oglas in Model.OglasiMajstora)
+                            {
+                                <a asp-controller="OglasMajstora" asp-action="Detalji" asp-route-id="@oglas.OglasId" class="profil-oglas">
+                                    <span class="profil-oglas-thumb"><i class="bi bi-image"></i></span>
+                                    <span class="profil-oglas-info">
+                                        <strong>@oglas.Naslov</strong>
+                                        @if (!string.IsNullOrWhiteSpace(oglas.Opis))
+                                        {
+                                            <span class="profil-oglas-opis">@oglas.Opis</span>
+                                        }
+                                        @if (oglas.Kategorije.Any())
+                                        {
+                                            <span class="profil-oglas-kategorije">
+                                                @foreach (var kat in oglas.Kategorije)
+                                                {
+                                                    <span class="profil-oglas-kategorija-badge">@kat</span>
+                                                }
+                                            </span>
+                                        }
+                                        <span class="profil-oglas-meta">
+                                            <span class="profil-oglas-cijena">
+                                                @($"Od {oglas.MinCijena:F0} KM{tipIsplateLabel(oglas.TipIsplate)}")
+                                            </span>
+                                            @if (!string.IsNullOrEmpty(oglas.Lokacija))
+                                            {
+                                                <span class="profil-oglas-lokacija"><i class="bi bi-geo-alt"></i> @oglas.Lokacija</span>
+                                            }
+                                        </span>
+                                    </span>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="profil-prazno">Još nema objavljenih oglasa usluga.</p>
+                    }
+                </div>
+
+                <div class="profil-card">
+                    <div class="profil-card-head">
+                        <h2 class="profil-card-title">Recenzije klijenata</h2>
+                        @if (Model.Recenzije.Any())
+                        {
+                            <a asp-controller="Recenzija" asp-action="Index" asp-route-izvrsilacId="@Model.UserId" class="profil-link">Pogledaj sve -></a>
+                        }
+                    </div>
+
+                    @if (Model.MozeOstavitiRecenziju)
+                    {
+                        <!-- Forma za novu recenziju — vidljiva samo klijentu sa završenim poslom -->
+                        <form asp-controller="Recenzija" asp-action="Objavi" method="post" class="profil-recenzija-forma" novalidate>
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="IzvrsilacID" value="@Model.UserId" />
+                            <p class="profil-recenzija-forma-naslov">
+                                <i class="bi bi-star me-1"></i>Ocijenite saradnju
+                            </p>
+                            <div class="profil-zvjezdice-unos" role="radiogroup" aria-label="Ocjena">
+                                @for (int z = 5; z >= 1; z--)
+                                {
+                                    <input type="radio" id="ocjena-@z" name="Ocjena" value="@z" required />
+                                    <label for="ocjena-@z" title="@z od 5"><i class="bi bi-star-fill"></i></label>
+                                }
+                            </div>
+                            <textarea name="Komentar" class="form-control" rows="3" minlength="10" maxlength="1000" required
+                                      placeholder="Opišite vaše iskustvo s ovim izvršiocem..."></textarea>
+                            <button type="submit" class="profil-btn profil-btn--primary mt-2">
+                                <i class="bi bi-send"></i> Objavi recenziju
+                            </button>
+                        </form>
+                    }
+
+                    @if (Model.Recenzije.Any())
+                    {
+                        @foreach (var r in Model.Recenzije.Take(3))
+                        {
+                            <div class="profil-recenzija">
+                                <div class="profil-recenzija-head">
+                                    <span class="profil-recenzija-avatar">
+                                        @if (!string.IsNullOrEmpty(r.KlijentSlika))
+                                        {
+                                            <img src="@r.KlijentSlika" alt="@r.KlijentIme" />
+                                        }
+                                        else
+                                        {
+                                            <i class="bi bi-person-fill"></i>
+                                        }
+                                    </span>
+                                    <div class="profil-recenzija-meta">
+                                        <strong>@r.KlijentIme</strong>
+                                        <small>@r.Datum.ToString("dd.MM.yyyy.")</small>
+                                    </div>
+                                    <div class="profil-recenzija-zvjezdice">
+                                        @for (int i = 1; i <= 5; i++)
+                                        {
+                                            <i class="bi @(i <= r.Ocjena ? "bi-star-fill" : "bi-star")"></i>
+                                        }
+                                    </div>
+                                </div>
+                                <p class="profil-recenzija-tekst">@r.Komentar</p>
+                                <div class="profil-recenzija-akcije">
+                                    @* Recenziju može prijaviti samo izvršilac na čijem je profilu *@
+                                    @if (Model.JeVlasnik)
+                                    {
+                                        @if (r.Prijavljena)
+                                        {
+                                            <span class="profil-recenzija-prijava profil-recenzija-prijava--cekanje">
+                                                <i class="bi bi-flag-fill"></i> Prijavljena — čeka pregled
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <a asp-controller="Recenzija" asp-action="Prijavi" asp-route-recenzijaId="@r.RecenzijaId"
+                                               class="profil-recenzija-prijava" title="Prijavi neprikladnu recenziju">
+                                                <i class="bi bi-flag"></i> Prijavi
+                                            </a>
+                                        }
+                                    }
+                                    @* Admin može obrisati bilo koju recenziju *@
+                                    @if (User.IsInRole("Administrator"))
+                                    {
+                                        <form asp-controller="Admin" asp-action="UkloniRecenziju" method="post" class="profil-admin-ukloni"
+                                              onsubmit="return confirm('Obrisati ovu recenziju? Ova akcija je trajna.');" novalidate>
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="recenzijaId" value="@r.RecenzijaId" />
+                                            <button type="submit" class="profil-admin-btn" title="Obriši recenziju">
+                                                <i class="bi bi-trash-fill"></i> Obriši
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="profil-prazno">Još nema recenzija.</p>
+                    }
+                </div>
+            </div>
+
+            <div class="profil-col-side">
+                @if (Model.PortfolioSlike.Any())
+                {
+                    <div class="profil-card">
+                        <h2 class="profil-card-title">Portfolio</h2>
+                        <div class="profil-portfolio">
+                            @foreach (var slika in Model.PortfolioSlike)
+                            {
+                                <img src="@slika" alt="Portfolio" class="profil-portfolio-slika" />
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (Model.Uloga == "Firma")
+                {
+                    <div class="profil-card">
+                        <h2 class="profil-card-title">Informacije</h2>
+                        <div style="display: grid; gap: 1rem;">
+                            @if (Model.MaxZaposlenih.HasValue)
+                            {
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: .8rem; border-bottom: 1px solid #f0f1f3;">
+                                    <span style="color: var(--text-muted, #6b7280); font-size: .9rem;">Zaposlenika</span>
+                                    <strong style="color: var(--text-primary, #1f2937);">@ZaposleniRaspon(Model.MinZaposlenih ?? 0, Model.MaxZaposlenih.Value)</strong>
+                                </div>
+                            }
+                            @if (Model.RadnoVrijeme?.OtvorenoOd.HasValue == true && Model.RadnoVrijeme?.OtvorenoDo.HasValue == true)
+                            {
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: .8rem; border-bottom: 1px solid #f0f1f3;">
+                                    <span style="color: var(--text-muted, #6b7280); font-size: .9rem;">Radno vrijeme</span>
+                                    <strong style="color: var(--text-primary, #1f2937);">
+                                        @($"{Model.RadnoVrijeme.OtvorenoOd?.Hours:D2}:{Model.RadnoVrijeme.OtvorenoOd?.Minutes:D2}")
+                                        -
+                                        @($"{Model.RadnoVrijeme.OtvorenoDo?.Hours:D2}:{Model.RadnoVrijeme.OtvorenoDo?.Minutes:D2}")
+                                    </strong>
+                                </div>
+                            }
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="color: var(--text-muted, #6b7280); font-size: .9rem;">Član od</span>
+                                <strong style="color: var(--text-primary, #1f2937);">@Model.DatumRegistracije.ToString("MMM yyyy.")</strong>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (jeKlijent && Model.JeVlasnik)
+    {
+        <!-- ===================== KLIJENT (vlasnik) ===================== -->
+        <div class="profil-klijent-header">
+            <div class="profil-klijent-info">
+                @if (!string.IsNullOrEmpty(Model.Slika))
+                {
+                    <img src="@Model.Slika" alt="@Model.DisplayName" class="profil-avatar profil-avatar--sm" />
+                }
+                else
+                {
+                    <span class="profil-avatar profil-avatar--sm profil-avatar--fallback"><i class="bi bi-person-fill"></i></span>
+                }
+                <div>
+                    <h1 class="profil-klijent-ime">@Model.DisplayName</h1>
+                    <div class="profil-klijent-meta">
+                        @if (!string.IsNullOrEmpty(Model.Lokacija))
+                        {
+                            <span><i class="bi bi-geo-alt"></i> @Model.Lokacija</span>
+                        }
+                        <span><i class="bi bi-calendar3"></i> Član od @Model.DatumRegistracije.ToString("MMM yyyy.")</span>
+                        @if (!string.IsNullOrEmpty(Model.Email))
+                        {
+                            <span><i class="bi bi-envelope"></i> @Model.Email</span>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="profil-klijent-stats">
+                <div class="profil-stat">
+                    <span class="profil-stat-value profil-stat-value--blue">@Model.BrojAktivnihOglasa</span>
+                    <span class="profil-stat-label">Aktivnih</span>
+                </div>
+                <div class="profil-stat">
+                    <span class="profil-stat-value">@Model.BrojZatvorenihOglasa</span>
+                    <span class="profil-stat-label">Zatvorenih</span>
+                </div>
+                <div class="profil-stat">
+                    <span class="profil-stat-value profil-stat-value--green">@Model.BrojZavrsenihOglasa</span>
+                    <span class="profil-stat-label">Završenih</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="profil-moji-head">
+            <h2>Moji oglasi</h2>
+            <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                <a asp-controller="Profil" asp-action="Edit" class="profil-btn profil-btn--outline">
+                    <i class="bi bi-pencil-square"></i> Uredi profil
+                </a>
+                <a asp-controller="ObjaviOglas" asp-action="Index" class="profil-btn profil-btn--primary">
+                    <i class="bi bi-plus-lg"></i> Novi oglas
+                </a>
+            </div>
+        </div>
+
+        <div class="profil-tabs">
+            <button type="button" class="profil-tab active" data-tab="aktivni">
+                Aktivni <span class="profil-tab-broj">@Model.BrojAktivnihOglasa</span>
+            </button>
+            <button type="button" class="profil-tab" data-tab="zatvoreni">
+                Zatvoreni <span class="profil-tab-broj">@(Model.BrojZatvorenihOglasa + Model.BrojZavrsenihOglasa)</span>
+            </button>
+        </div>
+
+        <div id="panel-aktivni" class="profil-tab-panel">
+            @{
+                var aktivni = Model.OglasiUsluge.Where(o => o.Status == Status.Aktivan).ToList();
+            }
+            @if (aktivni.Any())
+            {
+                @foreach (var oglas in aktivni)
+                {
+                    @await Html.PartialAsync("_ProfilOglasKartica", oglas)
+                }
+            }
+            else
+            {
+                <div class="profil-card profil-prazno-card">Nemate aktivnih oglasa.</div>
+            }
+        </div>
+
+        <div id="panel-zatvoreni" class="profil-tab-panel" style="display:none;">
+            @{
+                var zatvoreni = Model.OglasiUsluge.Where(o => o.Status != Status.Aktivan).ToList();
+            }
+            @if (zatvoreni.Any())
+            {
+                @foreach (var oglas in zatvoreni)
+                {
+                    @await Html.PartialAsync("_ProfilOglasKartica", oglas)
+                }
+            }
+            else
+            {
+                <div class="profil-card profil-prazno-card">Nemate zatvorenih oglasa.</div>
+            }
+        </div>
+    }
+    else
+    {
+        <!-- ===================== Javni profil klijenta ===================== -->
+        <div class="profil-klijent-header">
+            <div class="profil-klijent-info">
+                @if (!string.IsNullOrEmpty(Model.Slika))
+                {
+                    <img src="@Model.Slika" alt="@Model.DisplayName" class="profil-avatar profil-avatar--sm" />
+                }
+                else
+                {
+                    <span class="profil-avatar profil-avatar--sm profil-avatar--fallback"><i class="bi bi-person-fill"></i></span>
+                }
+                <div>
+                    <h1 class="profil-klijent-ime">@Model.DisplayName</h1>
+                    <div class="profil-klijent-meta">
+                        @if (!string.IsNullOrEmpty(Model.Lokacija))
+                        {
+                            <span><i class="bi bi-geo-alt"></i> @Model.Lokacija</span>
+                        }
+                        <span><i class="bi bi-calendar3"></i> Član od @Model.DatumRegistracije.ToString("MMM yyyy.")</span>
+                        @if (!string.IsNullOrEmpty(Model.Email))
+                        {
+                            <span><i class="bi bi-envelope"></i> @Model.Email</span>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="profil-klijent-akcije">
+                @if (Model.JeVlasnik)
+                {
+                    <a asp-controller="Profil" asp-action="Edit" class="profil-btn profil-btn--primary">
+                        <i class="bi bi-pencil-square"></i> Uredi profil
+                    </a>
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(Model.Email))
+                    {
+                        <a href="mailto:@Model.Email" class="profil-btn profil-btn--primary">Kontaktiraj</a>
+                    }
+                    @* Admin može urediti bilo koji profil *@
+                    if (User.IsInRole("Administrator"))
+                    {
+                        <a asp-controller="Profil" asp-action="Edit" asp-route-username="@Model.Username" class="profil-btn profil-btn--outline">
+                            <i class="bi bi-pencil-square"></i> Uredi profil
+                        </a>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="profil-klijent-stats-header">
+            <div class="profil-stat">
+                <span class="profil-stat-value profil-stat-value--blue">@Model.BrojAktivnihOglasa</span>
+                <span class="profil-stat-label">Aktivnih</span>
+            </div>
+            <div class="profil-stat">
+                <span class="profil-stat-value">@Model.BrojZatvorenihOglasa</span>
+                <span class="profil-stat-label">Zatvorenih</span>
+            </div>
+            <div class="profil-stat">
+                <span class="profil-stat-value profil-stat-value--green">@Model.BrojZavrsenihOglasa</span>
+                <span class="profil-stat-label">Završenih</span>
+            </div>
+        </div>
+
+        @if (Model.OglasiUsluge.Any())
+        {
+            <div class="profil-javni-oglasi-header">
+                <h2>Oglasi</h2>
+            </div>
+
+            <div class="profil-javni-oglasi">
+                @foreach (var oglas in Model.OglasiUsluge)
+                {
+                    <a asp-controller="OglasUsluge" asp-action="Detalji" asp-route-id="@oglas.OglasId" class="profil-javni-oglas-kartica">
+                        <div class="profil-javni-oglas-header-kartica">
+                            <div class="profil-javni-oglas-naslov">@oglas.Naslov</div>
+                            <div class="profil-javni-oglas-status @("oglas-status--" + (oglas.Status == Status.Aktivan ? "aktivan" : oglas.Status == Status.Isporuceno ? "zavrsen" : "zatvoren"))">
+                                <i class="bi @(oglas.Status == Status.Aktivan ? "bi-check-circle-fill" : oglas.Status == Status.Isporuceno ? "bi-check2-all" : "bi-x-circle-fill")"></i>
+                                @(oglas.Status == Status.Aktivan ? "Aktivan" : oglas.Status == Status.Isporuceno ? "Završen" : "Zatvoren")
+                            </div>
+                        </div>
+                        <div class="profil-javni-oglas-info">
+                            @if (!string.IsNullOrEmpty(oglas.Lokacija))
+                            {
+                                <span class="profil-javni-oglas-lokacija"><i class="bi bi-geo-alt"></i> @oglas.Lokacija</span>
+                            }
+                            <span class="profil-javni-oglas-datum"><i class="bi bi-calendar3"></i> @oglas.DatumObjave.ToString("dd.MM.yyyy.")</span>
+                            @if (oglas.Kategorije.Any())
+                            {
+                                <span class="profil-javni-oglas-kategorija">@string.Join(", ", oglas.Kategorije)</span>
+                            }
+                        </div>
+                        <div class="profil-javni-oglas-footer">
+                            <div class="profil-javni-oglas-budzet">
+                                @if (oglas.MaxBudzet > 0)
+                                {
+                                    <span>@oglas.MinBudzet - @oglas.MaxBudzet KM</span>
+                                }
+                                else if (oglas.MinBudzet > 0)
+                                {
+                                    <span>Od @oglas.MinBudzet KM</span>
+                                }
+                                else
+                                {
+                                    <span>Po dogovoru</span>
+                                }
+                            </div>
+                            <div class="profil-javni-oglas-ponude">
+                                <i class="bi bi-people-fill"></i> @oglas.BrojPonuda @(oglas.BrojPonuda == 1 ? "ponuda" : oglas.BrojPonuda < 5 ? "ponude" : "ponuda")
+                            </div>
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="profil-card profil-prazno-card">Nema objavljenih oglasa.</div>
+        }
+    }
+</div>
+
+<style>
+    .profil-page {
+        max-width: 1140px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 3rem;
+        font-family: var(--font-body, 'Plus Jakarta Sans'), sans-serif;
+    }
+    @@media (max-width: 640px) {
+        .profil-page {
+            padding: 1rem 0.75rem 2rem;
+        }
+    }
+
+    /* ===== Hero (izvršilac) ===== */
+    .profil-hero-card {
+        background: #fff;
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+    .profil-banner {
+        height: 150px;
+        background: linear-gradient(110deg, #1e6fe0 0%, #1e3a8a 75%, #16265c 100%);
+    }
+    .profil-hero-body { padding: 0 1.75rem 1.25rem; }
+    .profil-hero-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 1.25rem;
+        margin-top: -42px;
+        flex-wrap: wrap;
+    }
+    @@media (max-width: 640px) {
+        .profil-hero-main {
+            margin-top: -30px;
+            gap: .8rem;
+        }
+    }
+
+    .profil-avatar {
+        width: 96px; height: 96px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid #fff;
+        background: #e5e7eb;
+        flex-shrink: 0;
+        box-shadow: 0 1px 4px rgba(0,0,0,.12);
+    }
+    @@media (max-width: 640px) {
+        .profil-avatar {
+            width: 72px;
+            height: 72px;
+            border-width: 3px;
+        }
+    }
+    .profil-avatar--fallback {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        font-size: 2.6rem;
+    }
+    .profil-avatar--sm { width: 72px; height: 72px; font-size: 2rem; }
+    @@media (max-width: 640px) {
+        .profil-avatar--sm {
+            width: 56px;
+            height: 56px;
+            font-size: 1.5rem;
+        }
+    }
+
+    .profil-hero-info { padding-top: 50px; flex: 1; min-width: 220px; }
+    @@media (max-width: 640px) {
+        .profil-hero-info {
+            padding-top: 0;
+            min-width: 100%;
+        }
+    }
+    .profil-hero-info h1 {
+        font-size: 1.45rem;
+        font-weight: 800;
+        margin: 0 0 .15rem;
+        color: var(--text-primary, #1f2937);
+        display: flex;
+        align-items: center;
+        gap: .45rem;
+    }
+    @@media (max-width: 640px) {
+        .profil-hero-info h1 {
+            font-size: 1.2rem;
+        }
+    }
+    .profil-verified { color: #374151; font-size: 1.1rem; }
+    .profil-zanimanje { margin: 0; color: var(--text-muted, #6b7280); font-size: .95rem; }
+    @@media (max-width: 640px) {
+        .profil-zanimanje {
+            font-size: .9rem;
+        }
+    }
+    .profil-lokacija { margin: .2rem 0 0; color: var(--text-muted, #6b7280); font-size: .875rem; }
+
+    .profil-hero-akcije {
+        padding-top: 56px;
+        display: flex;
+        gap: .6rem;
+        flex-shrink: 0;
+    }
+
+    .profil-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .5rem 1.2rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: .9rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background .15s ease;
+        border: 0;
+    }
+    .profil-btn--primary { background: var(--brand-blue, #1e6fe0); color: #fff; }
+    .profil-btn--primary:hover { background: var(--brand-blue-hover, #1a5fc4); color: #fff; }
+    .profil-btn--outline {
+        background: #fff;
+        border: 1px solid var(--border-light, #e5e7eb);
+        color: var(--text-primary, #1f2937);
+    }
+    .profil-btn--outline:hover { background: #f3f4f6; color: var(--text-primary, #1f2937); }
+
+    .profil-stats {
+        display: flex;
+        gap: 2.5rem;
+        margin-top: 1.1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f0f1f3;
+        flex-wrap: wrap;
+    }
+    @@media (max-width: 640px) {
+        .profil-stats {
+            gap: 1.5rem;
+            padding-top: .8rem;
+            margin-top: .8rem;
+        }
+    }
+    .profil-stat { display: flex; flex-direction: column; }
+    .profil-stat-value {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--text-primary, #1f2937);
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+    }
+    @@media (max-width: 640px) {
+        .profil-stat-value {
+            font-size: 1.1rem;
+        }
+    }
+    .profil-stat-value--blue { color: var(--brand-blue, #1e6fe0); }
+    .profil-stat-value--green { color: #16a34a; }
+    .profil-star { color: var(--brand-blue, #1e6fe0); font-size: 1rem; }
+    .profil-stat-label { font-size: .78rem; color: var(--text-muted, #6b7280); }
+    @@media (max-width: 640px) {
+        .profil-stat-label {
+            font-size: .75rem;
+        }
+    }
+
+    /* ===== Grid + cards ===== */
+    .profil-grid {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 1.5rem;
+        align-items: start;
+    }
+    @@media (max-width: 900px) {
+        .profil-grid { grid-template-columns: 1fr; }
+    }
+
+    .profil-card {
+        background: #fff;
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 12px;
+        padding: 1.4rem 1.6rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    .profil-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: .5rem;
+    }
+    .profil-card-head .profil-card-title { margin-bottom: 0; }
+    .profil-card-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-primary, #1f2937);
+        margin-bottom: .8rem;
+    }
+    .profil-link {
+        color: var(--brand-blue, #1e6fe0);
+        font-size: .875rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .profil-link:hover { text-decoration: underline; }
+    .profil-opis { color: var(--text-secondary, #4b5563); font-size: .925rem; line-height: 1.65; margin: 0; }
+    .profil-prazno { color: var(--text-muted, #6b7280); font-size: .9rem; margin: 0; }
+    .profil-prazno-card { text-align: center; color: var(--text-muted, #6b7280); }
+
+    /* Chips */
+    .profil-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .profil-chip {
+        padding: .3rem .85rem;
+        border: 1px solid #bfd5f6;
+        border-radius: 999px;
+        background: #f3f8ff;
+        color: var(--brand-blue, #1e6fe0);
+        font-size: .82rem;
+        font-weight: 600;
+    }
+
+    /* Oglasi (izvršilac) */
+    .profil-oglasi { display: flex; flex-direction: column; gap: .9rem; }
+    .profil-oglas {
+        display: flex;
+        gap: 1rem;
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 10px;
+        padding: .9rem;
+        text-decoration: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .profil-oglas:hover { border-color: var(--brand-blue, #1e6fe0); box-shadow: 0 2px 10px rgba(30,111,224,.08); }
+    .profil-oglas-thumb {
+        width: 86px; height: 86px;
+        border-radius: 8px;
+        background: #eef2f9;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9db1d6;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+    .profil-oglas-info { display: flex; flex-direction: column; gap: .25rem; min-width: 0; flex: 1; }
+    .profil-oglas-info strong { color: var(--text-primary, #1f2937); font-size: .95rem; }
+    .profil-oglas-opis {
+        color: var(--text-muted, #6b7280);
+        font-size: .84rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .profil-oglas-kategorije {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .4rem;
+        margin-top: .3rem;
+    }
+    .profil-oglas-kategorija-badge {
+        display: inline-block;
+        padding: .15rem .5rem;
+        border: 1px solid #bfd5f6;
+        border-radius: 999px;
+        background: #f3f8ff;
+        color: var(--brand-blue, #1e6fe0);
+        font-size: .75rem;
+        font-weight: 600;
+    }
+    .profil-oglas-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+        gap: 1rem;
+    }
+    .profil-oglas-cijena { color: var(--brand-blue, #1e6fe0); font-weight: 700; font-size: .9rem; }
+    .profil-oglas-lokacija { color: var(--text-muted, #6b7280); font-size: .8rem; }
+
+    /* Recenzije */
+    .profil-recenzija { border-top: 1px solid #f0f1f3; padding: .9rem 0 .2rem; }
+    .profil-recenzija:first-of-type { border-top: 0; }
+    .profil-recenzija-head { display: flex; align-items: center; gap: .65rem; }
+    .profil-recenzija-avatar {
+        width: 38px; height: 38px;
+        border-radius: 50%;
+        background: #e5e7eb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9ca3af;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+    .profil-recenzija-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profil-recenzija-meta { display: flex; flex-direction: column; }
+    .profil-recenzija-meta strong { font-size: .9rem; color: var(--text-primary, #1f2937); }
+    .profil-recenzija-meta small { color: var(--text-muted, #6b7280); font-size: .75rem; }
+    .profil-recenzija-zvjezdice { margin-left: auto; color: var(--brand-blue, #1e6fe0); font-size: .85rem; }
+    .profil-recenzija-tekst { margin: .55rem 0 .4rem; color: var(--text-secondary, #4b5563); font-size: .9rem; line-height: 1.55; }
+
+    /* Prijava recenzije */
+    .profil-recenzija-prijava {
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+        font-size: .78rem;
+        color: var(--text-muted, #6b7280);
+        text-decoration: none;
+    }
+    .profil-recenzija-prijava:hover { color: #dc2626; }
+    .profil-recenzija-prijava--cekanje { color: #d97706; cursor: default; }
+
+    /* Forma za novu recenziju */
+    .profil-recenzija-forma {
+        background: #f8faff;
+        border: 1px solid #e0e7ff;
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        margin-bottom: 1rem;
+    }
+    .profil-recenzija-forma-naslov {
+        margin: 0 0 .4rem;
+        font-weight: 700;
+        font-size: .95rem;
+        color: var(--text-primary, #1f2937);
+    }
+    .profil-zvjezdice-unos {
+        display: inline-flex;
+        flex-direction: row-reverse;
+        gap: .15rem;
+        margin-bottom: .6rem;
+    }
+    .profil-zvjezdice-unos input { display: none; }
+    .profil-zvjezdice-unos label {
+        cursor: pointer;
+        font-size: 1.45rem;
+        color: #d1d5db;
+        transition: color .1s ease;
+    }
+    /* row-reverse: hover/checked "lijevo od" zvjezdice u DOM-u = vizuelno popunjavanje s lijeva */
+    .profil-zvjezdice-unos input:checked ~ label,
+    .profil-zvjezdice-unos label:hover,
+    .profil-zvjezdice-unos label:hover ~ label { color: var(--brand-blue, #1e6fe0); }
+
+    .profil-recenzija-akcije {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        margin-top: .4rem;
+        flex-wrap: wrap;
+    }
+
+    .profil-admin-ukloni {
+        margin: 0;
+        display: inline;
+    }
+
+    .profil-admin-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        padding: .4rem .85rem;
+        border: none;
+        background: #b91c1c;
+        color: #fff;
+        border-radius: 7px;
+        font-size: .82rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 1px 3px rgba(185, 28, 28, .3);
+        transition: background .15s ease, box-shadow .15s ease;
+    }
+
+    .profil-admin-btn:hover {
+        background: #991b1b;
+        box-shadow: 0 2px 6px rgba(153, 27, 27, .4);
+    }
+
+    .profil-admin-btn i {
+        font-size: .85rem;
+    }
+
+    /* Portfolio */
+    .profil-portfolio { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .profil-portfolio-slika {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    .profil-portfolio-placeholder {
+        aspect-ratio: 1;
+        border: 1.5px dashed #ccd9ef;
+        border-radius: 8px;
+        background: #f6f9fe;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9db1d6;
+        font-size: 1.3rem;
+    }
+
+    /* ===== Klijent ===== */
+    .profil-klijent-header {
+        background: #fff;
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 12px;
+        padding: 1.4rem 1.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.75rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    @@media (max-width: 640px) {
+        .profil-klijent-header {
+            padding: 1rem 1rem;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+    .profil-klijent-info { display: flex; align-items: center; gap: 1.1rem; }
+    @@media (max-width: 640px) {
+        .profil-klijent-info {
+            width: 100%;
+            gap: .8rem;
+        }
+    }
+    .profil-klijent-ime { font-size: 1.3rem; font-weight: 800; margin: 0 0 .25rem; color: var(--text-primary, #1f2937); }
+    @@media (max-width: 640px) {
+        .profil-klijent-ime {
+            font-size: 1.1rem;
+        }
+    }
+    .profil-klijent-meta {
+        display: flex;
+        gap: 1.1rem;
+        flex-wrap: wrap;
+        color: var(--text-muted, #6b7280);
+        font-size: .85rem;
+    }
+    @@media (max-width: 640px) {
+        .profil-klijent-meta {
+            gap: .7rem;
+            font-size: .8rem;
+        }
+    }
+    .profil-klijent-stats { display: flex; gap: 2.25rem; text-align: center; }
+    @@media (max-width: 640px) {
+        .profil-klijent-stats {
+            gap: 1.5rem;
+        }
+    }
+    .profil-klijent-stats .profil-stat { align-items: center; }
+    .profil-klijent-akcije {
+        display: flex;
+        gap: .6rem;
+        flex-shrink: 0;
+    }
+    @@media (max-width: 640px) {
+        .profil-klijent-akcije {
+            width: 100%;
+        }
+        .profil-klijent-akcije .profil-btn {
+            width: 100%;
+        }
+    }
+
+    .profil-moji-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    @@media (max-width: 640px) {
+        .profil-moji-head {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+    .profil-moji-head h2 { font-size: 1.25rem; font-weight: 800; margin: 0; color: var(--text-primary, #1f2937); }
+    @@media (max-width: 640px) {
+        .profil-moji-head h2 {
+            font-size: 1.1rem;
+        }
+    }
+    .profil-moji-head .profil-btn {
+        width: auto;
+    }
+    @@media (max-width: 640px) {
+        .profil-moji-head .profil-btn {
+            width: 100%;
+        }
+    }
+
+    .profil-tabs {
+        display: flex;
+        gap: 1.5rem;
+        border-bottom: 1px solid var(--border-light, #e5e7eb);
+        margin-bottom: 1.25rem;
+    }
+    @@media (max-width: 640px) {
+        .profil-tabs {
+            gap: 1rem;
+        }
+    }
+    .profil-tab {
+        background: none;
+        border: 0;
+        border-bottom: 2.5px solid transparent;
+        padding: .5rem .1rem .65rem;
+        font-weight: 600;
+        font-size: .95rem;
+        color: var(--text-muted, #6b7280);
+        cursor: pointer;
+    }
+    @@media (max-width: 640px) {
+        .profil-tab {
+            font-size: .85rem;
+            padding: .4rem 0 .55rem;
+        }
+    }
+    .profil-tab.active { color: var(--brand-blue, #1e6fe0); border-bottom-color: var(--brand-blue, #1e6fe0); }
+    .profil-tab-broj { font-size: .8rem; margin-left: .25rem; }
+    @@media (max-width: 640px) {
+        .profil-tab-broj {
+            font-size: .75rem;
+        }
+    }
+
+    /* ===== Kartica oglasa (klijent) ===== */
+    .moj-oglas-card {
+        background: #fff;
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 12px;
+        margin-bottom: 1.1rem;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    @@media (max-width: 640px) {
+        .moj-oglas-card {
+            margin-bottom: .8rem;
+        }
+    }
+    .moj-oglas-body {
+        display: flex;
+        gap: 1rem;
+        padding: 1.1rem 1.4rem;
+        align-items: flex-start;
+    }
+    @@media (max-width: 640px) {
+        .moj-oglas-body {
+            gap: .8rem;
+            padding: .9rem 1rem;
+        }
+    }
+    .moj-oglas-thumb {
+        width: 64px; height: 64px;
+        border-radius: 8px;
+        background: #eef2f9;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #9db1d6;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    @@media (max-width: 640px) {
+        .moj-oglas-thumb {
+            width: 50px;
+            height: 50px;
+            font-size: 1rem;
+        }
+    }
+    .moj-oglas-info { flex: 1; min-width: 0; }
+    .moj-oglas-naslov {
+        color: var(--brand-blue, #1e6fe0);
+        font-weight: 700;
+        font-size: 1rem;
+        text-decoration: none;
+    }
+    .moj-oglas-naslov:hover { text-decoration: underline; }
+    .moj-oglas-meta {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: .35rem;
+        color: var(--text-muted, #6b7280);
+        font-size: .82rem;
+    }
+    .moj-oglas-desno {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: .4rem;
+        flex-shrink: 0;
+    }
+    .oglas-status {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        font-size: .76rem;
+        font-weight: 600;
+        padding: .2rem .6rem;
+        border-radius: 999px;
+    }
+    .oglas-status .bi { font-size: .5rem; }
+    .oglas-status--aktivan { background: #ecfdf5; color: #16a34a; }
+    .oglas-status--zatvoren { background: #f3f4f6; color: #6b7280; }
+    .oglas-status--zavrsen { background: #eff6ff; color: #1e6fe0; }
+    .moj-oglas-budzet { font-weight: 800; color: var(--text-primary, #1f2937); font-size: .95rem; }
+
+    .moj-oglas-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: .7rem 1.4rem;
+        background: #fafbfc;
+        border-top: 1px solid #f0f1f3;
+        flex-wrap: wrap;
+    }
+    @@media (max-width: 640px) {
+        .moj-oglas-footer {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: .6rem;
+            padding: .6rem 1rem;
+        }
+    }
+    .moj-oglas-ponude { color: var(--text-muted, #6b7280); font-size: .85rem; }
+    @@media (max-width: 640px) {
+        .moj-oglas-ponude {
+            font-size: .8rem;
+        }
+    }
+    .moj-oglas-akcije { display: flex; gap: .5rem; flex-wrap: wrap; }
+    @@media (max-width: 640px) {
+        .moj-oglas-akcije {
+            width: 100%;
+            gap: .4rem;
+        }
+        .moj-oglas-akcije .moj-oglas-btn {
+            flex: 1;
+            font-size: .8rem;
+            padding: .3rem .6rem;
+        }
+    }
+    .moj-oglas-btn {
+        padding: .38rem .95rem;
+        border-radius: 8px;
+        border: 1px solid var(--border-light, #e5e7eb);
+        background: #fff;
+        color: var(--text-primary, #1f2937);
+        font-size: .84rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background .15s ease;
+    }
+    .moj-oglas-btn:hover { background: #f3f4f6; color: var(--text-primary, #1f2937); }
+    .moj-oglas-btn--outline {
+        border-color: var(--brand-blue, #1e6fe0);
+        color: var(--brand-blue, #1e6fe0);
+    }
+    .moj-oglas-btn--outline:hover { background: #eff6ff; color: var(--brand-blue, #1e6fe0); }
+    .moj-oglas-btn--crveni {
+        border-color: #e50000;
+        background: #fef2f2;
+        color: ##ffffff;
+    }
+    .moj-oglas-btn--crveni:hover { background: #fee2e2; color: #b91c1c; }
+    .moj-oglas-btn--zeleni {
+        border-color: #a7f3d0;
+        background: #ecfdf5;
+        color: #16a34a;
+    }
+    .moj-oglas-btn--zeleni:hover { background: #d1fae5; color: #15803d; }
+    .moj-oglas-ocijenjeno {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        font-size: .84rem;
+        font-weight: 600;
+        color: var(--brand-blue, #1e6fe0);
+        padding: .38rem .5rem;
+    }
+
+    /* ===== Javni klijent profil ===== */
+    .profil-klijent-akcije {
+        display: flex;
+        gap: .6rem;
+        flex-shrink: 0;
+    }
+
+    .profil-klijent-stats-header {
+        display: flex;
+        gap: 2.5rem;
+        background: #fff;
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 12px;
+        padding: 1.4rem 1.75rem;
+        margin-bottom: 1.75rem;
+        flex-wrap: wrap;
+        box-shadow: 0 1px 4px rgba(0,0,0,.05);
+    }
+    @@media (max-width: 640px) {
+        .profil-klijent-stats-header {
+            padding: 1rem 1rem;
+            gap: 1.5rem;
+            justify-content: space-around;
+        }
+    }
+    .profil-klijent-stats-header .profil-stat { text-align: center; align-items: center; }
+
+    .profil-javni-oglasi-header {
+        margin-bottom: 1rem;
+    }
+    .profil-javni-oglasi-header h2 {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--text-primary, #1f2937);
+        margin: 0;
+    }
+
+    .profil-javni-oglasi {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .profil-javni-oglas-kartica {
+        background: #fff;
+        border: 1px solid var(--border-light, #e5e7eb);
+        border-radius: 12px;
+        padding: 1.2rem 1.4rem;
+        text-decoration: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+        display: flex;
+        flex-direction: column;
+        gap: .8rem;
+    }
+    @@media (max-width: 640px) {
+        .profil-javni-oglas-kartica {
+            padding: .9rem 1rem;
+            gap: .6rem;
+        }
+    }
+    .profil-javni-oglas-kartica:hover {
+        border-color: var(--brand-blue, #1e6fe0);
+        box-shadow: 0 2px 10px rgba(30,111,224,.08);
+    }
+
+    .profil-javni-oglas-header-kartica {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    @@media (max-width: 640px) {
+        .profil-javni-oglas-header-kartica {
+            flex-direction: column;
+            gap: .5rem;
+        }
+    }
+
+    .profil-javni-oglas-naslov {
+        color: var(--text-primary, #1f2937);
+        font-weight: 700;
+        font-size: 1rem;
+        flex: 1;
+    }
+    @@media (max-width: 640px) {
+        .profil-javni-oglas-naslov {
+            font-size: .95rem;
+        }
+    }
+
+    .profil-javni-oglas-status {
+        display: inline-flex;
+        align-items: center;
+        gap: .35rem;
+        font-size: .75rem;
+        font-weight: 600;
+        padding: .3rem .7rem;
+        border-radius: 999px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .profil-javni-oglas-status .bi { font-size: .5rem; }
+    .profil-javni-oglas-status.oglas-status--aktivan { background: #ecfdf5; color: #16a34a; }
+    .profil-javni-oglas-status.oglas-status--zatvoren { background: #f3f4f6; color: #6b7280; }
+    .profil-javni-oglas-status.oglas-status--zavrsen { background: #eff6ff; color: #1e6fe0; }
+
+    .profil-javni-oglas-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.2rem;
+        color: var(--text-muted, #6b7280);
+        font-size: .85rem;
+        align-items: center;
+    }
+    @@media (max-width: 640px) {
+        .profil-javni-oglas-info {
+            gap: .8rem;
+            font-size: .8rem;
+        }
+    }
+    .profil-javni-oglas-lokacija,
+    .profil-javni-oglas-datum,
+    .profil-javni-oglas-kategorija {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    .profil-javni-oglas-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    @@media (max-width: 640px) {
+        .profil-javni-oglas-footer {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: .6rem;
+        }
+    }
+
+    .profil-javni-oglas-budzet {
+        color: var(--brand-blue, #1e6fe0);
+        font-weight: 700;
+        font-size: .95rem;
+    }
+    @@media (max-width: 640px) {
+        .profil-javni-oglas-budzet {
+            font-size: .9rem;
+        }
+    }
+
+    .profil-javni-oglas-ponude {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        color: var(--text-muted, #6b7280);
+        font-size: .85rem;
+        font-weight: 600;
+    }
+    @@media (max-width: 640px) {
+        .profil-javni-oglas-ponude {
+            font-size: .8rem;
+        }
+    }
+</style>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.profil-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.profil-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('panel-aktivni').style.display = tab.dataset.tab === 'aktivni' ? '' : 'none';
+                document.getElementById('panel-zatvoreni').style.display = tab.dataset.tab === 'zatvoreni' ? '' : 'none';
+            });
+        });
+    </script>
+}
