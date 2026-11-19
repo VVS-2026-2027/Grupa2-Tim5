@@ -1,0 +1,231 @@
+IZVJESTAJ: TASK 2 - UNIT TESTIRANJE I TASK 3 - TDD
+====================================================
+
+Aplikacija: TimeForPill
+Grana: unitTest
+Datum provjere: 19.11.2026.
+
+NAPOMENA O AUTORSTVU
+--------------------
+Historija repozitorija prije ovog rada ne daje pouzdan dokaz vlasništva po
+klasama. Raspodjela imena u ovom izvještaju je ORGANIZACIJSKI PRIJEDLOG iz
+zadatka, a ne tvrdnja o stvarnom autorstvu. Svaki član mora prije predaje
+potvrditi svoj stvarni doprinos i moći objasniti testove na prezentaciji.
+
+1. POCETNO STANJE
+-----------------
+- Aplikacija je ASP.NET Core MVC na .NET 8.0; koristi EF Core, Identity i SQL
+  Server.
+- Aktivna grana prije rada bila je unitTest, bez nezapisanih izmjena.
+- Nije postojao MSTest projekt. Postojao je samo
+  Projekat/TimeForPill/Tests/podaci.csv s komentarom, bez testnih slučajeva.
+- Početni restore i build aplikacije su izvršeni. Testni projekt je dodan u
+  Projekat/TimeForPill/TimeForPill.slnx.
+
+2. DODANI TESTNI PROJEKT I PODACI
+---------------------------------
+Testni projekt:
+  Projekat/TimeForPill.Tests/TimeForPill.Tests.csproj
+
+Tehnologije:
+- MSTest 3.6.4: [TestClass], [TestMethod], [DataTestMethod], [DynamicData]
+- Moq 4.20.72 za izolaciju IEmailService, IDoseWorkflowService i UserManager
+- EF Core InMemory 8.0.26 za izolovano testiranje poslovnog workflowa
+- coverlet.collector 6.0.2 za Cobertura coverage izvještaj
+
+Testni podaci ostaju odvojeni od testne logike i kopiraju se u output pomoću
+CopyToOutputDirectory. Loader koristi AppContext.BaseDirectory, nikada
+apsolutnu putanju.
+
+  CSV: Projekat/TimeForPill/Tests/podaci.csv
+       Kopiran u test output kao TestData/podaci.csv
+       Sadrži validne i nevalidne parametre terapije.
+
+  XML: Projekat/TimeForPill.Tests/TestData/podaci.xml
+       Kopiran u test output kao TestData/podaci.xml
+       Sadrži validne i nevalidne kontakt osobe.
+
+TestDataLoader.CsvTherapyCases i TestDataLoader.XmlContactCases su javni
+statički izvori za MSTest [DynamicData]. CSV i XML se stvarno učitavaju pri
+izvršavanju 10 parametriziranih testnih slučajeva.
+
+3. TESTOVI, SCENARIJI I PREDLOZENA RASPODJELA
+---------------------------------------------
+
+Predlozeno zaduzenje       Testna klasa/funkcionalnost
+-------------------------  ------------------------------------------------
+Ajnur Hakanovic            ModelAndConfigurationTests: Terapija iz CSV-a,
+                           Lijek i validacija Zahtjeva.
+Eldar Bosnjakovic          ModelAndConfigurationTests: KontaktOsoba iz XML-a
+                           i EmailSettings konfiguracija.
+Elmas Hamidovic            DoseWorkflowServiceTests: podsjetnici, propustene
+                           doze, dnevna statistika i kontakt upozorenje.
+Rejhan Goralija            PacijentControllerTddTests: obnova terapije i
+                           odgoda doze kroz stvarne controller akcije.
+Faris Halilcevic           Pokrivenost, provjera kopiranja podataka, izvještaj
+                           i zavrsna provjera komandi.
+
+Testna klasa                         Scenariji
+-----------------------------------  ----------------------------------------
+ModelAndConfigurationTests           6 CSV terapija, 4 XML kontakta, validan
+                                     lijek, nevalidan zahtjev, 4 EmailSettings
+                                     slučaja i statistika historije.
+DoseWorkflowServiceTests             uspješan email podsjetnik, nema emaila,
+                                     SMTP greška i ponovni pokušaj, propustena
+                                     doza/dnevna statistika, 3 uzastopna
+                                     propusta i email kontakt osobi.
+PacijentControllerTddTests           dupli neobrađeni zahtjev za obnovu i
+                                     odgoda iz 22:30 na sljedećih 06:00.
+
+ZAVRSNI BROJ MSTEST TESTOVA: 24 prošla, 0 palih, 0 preskocenih.
+
+4. MOCK OBJEKTI I IZOLACIJA
+---------------------------
+
+Test/funkcionalnost                    Zamijenjena zavisnost       Provjera
+-------------------------------------  -------------------------  ---------
+DoseWorkflow: poslan podsjetnik       IEmailService (Moq)         status doze
+                                                                i SendEmailAsync
+DoseWorkflow: SMTP greška             IEmailService (Moq)         doza ostaje
+                                                                podobna za retry
+DoseWorkflow: kontakt upozorenje      IEmailService (Moq)         oznake 3 doze
+                                                                i sadržaj poruke
+PacijentController: obnova/odgoda     UserManager (Moq),           vlasnik doze,
+                                     IDoseWorkflowService (Moq),  baza i rezultat
+                                     IEmailService (Moq)          controller akcije
+
+Moq provjere nisu samo Verify poziva: testovi provjeravaju izmijenjeni status,
+vrijeme, dnevnu statistiku, broj zahtjeva ili marker obavijesti. Raspodjela
+Moq testova po pojedincu mora se potvrditi od stvarnih članova tima prije
+predaje.
+
+5. TASK 3 - DVIJE NOVE TDD FUNKCIONALNOSTI
+------------------------------------------
+
+FUNKCIONALNOST 1: Sprjecavanje duplog neobradjenog zahtjeva za obnovu
+
+Korisnicki slucaj:
+Pacijent smije poslati najviše jedan neobrađeni zahtjev za obnovu iste
+terapije. Drugi klik ne smije stvoriti novi zahtjev ni poslati novu poruku.
+
+Pravila i rubni slučajevi:
+- provjerava se samo zahtjev iste TerapijaId vrijednosti;
+- obrađeni ili odbijeni zahtjevi ne blokiraju novi zahtjev;
+- nepostojeća terapija i dalje koristi postojeću validaciju kontrolera;
+- kod duplikata kontroler vraća View s ModelState greškom i ne dodaje zapis.
+
+Prihvatni kriterij:
+Nakon dva uzastopna poziva ObnovaTerapije za istu terapiju, broj Zahtjevi
+zapisa je tačno 1.
+
+Faza       Commit   Stvarni dokaz
+---------  -------  ---------------------------------------------------------
+RED        4e4f6b7 Test je pao: Expected 1, Actual 2.
+GREEN      89be74b AnyAsync provjera neobrađenog zahtjeva je dodana prije
+                    kreiranja novog zapisa; relevantni test je prošao.
+REFACTOR   c50a587 LINQ provjera je izdvojena u jasno imenovanu metodu
+                    HasPendingRenewalRequestAsync; isti test je prošao.
+
+FUNKCIONALNOST 2: Sigurna odgoda doze izvan nocnog perioda
+
+Korisnicki slucaj:
+Pacijent odgađa dozu za 30 minuta. Ako bi nova vrijednost pala u zabranjeni
+period od 23:00 do 05:59, doza se planira na prvi dozvoljeni termin, 06:00
+sljedećeg dana. Podsjetnik mora ostati pet minuta prije nove doze.
+
+Pravila i rubni slučajevi:
+- pravilo se primjenjuje samo na dozu u StatusDoze.Cekanje;
+- postojeće pravilo drugog odgađanja (Propusteno) ostaje nepromijenjeno;
+- odgoda u 22:30 daje 06:00 narednog dana, a podsjetnik 05:55;
+- terapija se i dalje završava prema najvećem vremenu doze.
+
+Prihvatni kriterij:
+Odgodi za dozu u 22:30 postavlja VrijemeUzimanja na narednih 06:00 i
+VrijemePodsjetnika na 05:55.
+
+Faza       Commit   Stvarni dokaz
+---------  -------  ---------------------------------------------------------
+RED        a7ad944 Test je pao: Expected 06:00 sljedećeg dana, Actual 23:00.
+GREEN      4bcef70 Odgoda koristi MoveToAllowedDoseTime i podsjetnik se
+                    računa od novog vremena; relevantni test je prošao.
+REFACTOR   5044be2 Pravilo je izdvojeno u ApplyPostponement bez izmjene
+                    ponašanja; isti test je prošao.
+
+6. POKRIVENOST KODA
+-------------------
+
+Komanda:
+  dotnet test .\Projekat\TimeForPill.Tests\TimeForPill.Tests.csproj --no-build --no-restore --collect:"XPlat Code Coverage" --results-directory .\TestResults --nologo --verbosity minimal
+
+Rezultat za cijeli TimeForPill assembly, bez filtera i bez isključenja:
+  Line coverage:   4,4%  (663 / 15.001 linija)
+  Branch coverage: 4,5%  (97 / 2.126 grana)
+
+Coverage XML:
+  TestResults/82b7d247-d839-4bfd-9b9e-157511e5175e/coverage.cobertura.xml
+
+HTML/Markdown izvještaj generisan komandom:
+  reportgenerator -reports:"<coverage.cobertura.xml>" -targetdir:".\CoverageReport" -reporttypes:"Html;MarkdownSummary"
+
+  HTML: CoverageReport/index.html
+  Puna automatski generisana tabela za svih 144 klasa: CoverageReport/Summary.md
+
+Nema filtera ni isključenja. Zbog toga su u ukupnom rezultatu namjerno ostale
+i migracije, generisani Razor dokumenti, Program, svi kontroleri i klase s
+nula posto pokrivenosti. CoverageReport i TestResults su ignorisani u Gitu kao
+generisani artefakti, ali se ponovo stvaraju navedenom komandom.
+
+Odabrane produkcijske klase                  Linije         Line     Branch
+-------------------------------------------  ------------  -------  -------
+ApplicationDbContext                         96 / 96       100,0%   N/A
+DoseWorkflowService                          292 / 329     88,7%    66,6%
+EmailSettings                                28 / 33       84,8%    50,0%
+PacijentController                           185 / 1.419   13,0%    9,0%
+Terapija                                     12 / 14       85,7%    N/A
+TerapijskaDoza                               12 / 12       100,0%   N/A
+Zahtjev                                      5 / 7         71,4%    N/A
+KontaktOsoba                                 4 / 5         80,0%    N/A
+Lijek                                        3 / 4         75,0%    N/A
+HistoryViewModel                             6 / 6         100,0%   50,0%
+
+Klase ispod cilja, uključujući klase s 0%, nisu skrivene: njihova puna tabela
+je dio generisanog Summary.md izvještaja. Najniža pokrivenost je 0% za više
+nepokrivenih kontrolera, migracija, view-modela, Program, EmailService i
+DoseReminderWorker.
+
+STATUS CILJA OD 90%: NIJE OSTVAREN.
+Nije dozvoljeno prikazivati ovaj rezultat kao 90%. Za 90% ukupno potrebno je
+značajno proširiti testove za sve CRUD kontrolere, Account/Admin/Ljekar tokove,
+EmailService/DoseReminderWorker, Program startup i sve preostale modele. To
+nije zamijenjeno filtrima niti praznim testovima.
+
+7. KOMANDE ZA PONAVLJANJE
+-------------------------
+
+Restore:
+  dotnet restore .\Projekat\TimeForPill\TimeForPill.slnx --nologo
+
+Build:
+  dotnet build .\Projekat\TimeForPill\TimeForPill.slnx --no-restore --nologo --verbosity minimal
+
+Svi testovi:
+  dotnet test .\Projekat\TimeForPill.Tests\TimeForPill.Tests.csproj --no-restore --nologo --verbosity minimal
+
+TDD funkcionalnost 1:
+  dotnet test .\Projekat\TimeForPill.Tests\TimeForPill.Tests.csproj --no-build --no-restore --filter "TestCategory=TDD-F1"
+
+TDD funkcionalnost 2:
+  dotnet test .\Projekat\TimeForPill.Tests\TimeForPill.Tests.csproj --no-build --no-restore --filter "TestCategory=TDD-F2"
+
+Zavrsni rezultat provjere:
+  Build: Build succeeded, 0 Warning(s), 0 Error(s).
+  Testovi: 24 prošla, 0 palih, 0 preskocenih.
+
+8. OTVORENE OBAVEZE PRIJE PREDAJE
+---------------------------------
+- Stvarni članovi moraju potvrditi raspodjelu rada i autorstvo.
+- Potrebno je proširiti testove ako je obaveza 90% ukupne pokrivenosti stroga.
+- Priložiti stvarni screenshot CoverageReport/index.html, s vidljivim
+  ukupnim line i branch procentima.
+- Pushati unitTest na konfigurisan remote bez force push-a kada je rad tima
+  pregledan i spreman za dijeljenje.
