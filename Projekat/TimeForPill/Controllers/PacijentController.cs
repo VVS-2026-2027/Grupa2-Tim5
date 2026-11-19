@@ -871,8 +871,10 @@ namespace TimeForPill.Controllers
                 return RedirectToAction(nameof(Home));
             }
 
-            doza.VrijemeUzimanja = doza.VrijemeUzimanja.AddMinutes(30);
-            doza.VrijemePodsjetnika = doza.VrijemePodsjetnika.AddMinutes(30);
+            var odgodjenoVrijeme = MoveToAllowedDoseTime(
+                doza.VrijemeUzimanja.AddMinutes(30));
+            doza.VrijemeUzimanja = odgodjenoVrijeme;
+            doza.VrijemePodsjetnika = odgodjenoVrijeme.AddMinutes(-5);
             doza.EmailPodsjetnikPoslan = false;
 
             if (doza.Terapija != null)
