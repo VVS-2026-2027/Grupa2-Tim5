@@ -512,10 +512,7 @@ namespace TimeForPill.Controllers
                 return View(model);
             }
 
-            var pendingRequestExists = await _context.Zahtjevi.AnyAsync(z =>
-                z.TerapijaId == terapija.Id &&
-                z.Status == StatusZahtjeva.Neobraden);
-            if (pendingRequestExists)
+            if (await HasPendingRenewalRequestAsync(terapija.Id))
             {
                 ModelState.AddModelError(
                     string.Empty,
@@ -1494,6 +1491,13 @@ namespace TimeForPill.Controllers
                     })
                     .ToList()
             };
+        }
+
+        private Task<bool> HasPendingRenewalRequestAsync(int terapijaId)
+        {
+            return _context.Zahtjevi.AnyAsync(zahtjev =>
+                zahtjev.TerapijaId == terapijaId &&
+                zahtjev.Status == StatusZahtjeva.Neobraden);
         }
 
         private async Task PopulateMedicineCatalogAsync(
