@@ -1,1 +1,7 @@
-#ovjde cemo koristiti podatke za testiranje
+Naziv;DnevnaDoza;UkupanBrojDoza;IntervalSati;OcekivanoValidno
+Paracetamol;1;21;8;true
+Ibuprofen;3;12;6;true
+X;1;5;24;false
+Vitamin C;0;5;24;false
+Antibiotik;1;0;24;false
+Terapija nocna;1;5;0;false

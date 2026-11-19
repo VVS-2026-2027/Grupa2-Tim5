@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Kontakti>
+  <Kontakt Ime="Amar" Prezime="Kovac" Email="amar.kovac@example.test" Telefon="061111111" OcekivanoValidno="true" />
+  <Kontakt Ime="A" Prezime="Kovac" Email="amar.kovac@example.test" Telefon="061111111" OcekivanoValidno="false" />
+  <Kontakt Ime="Lejla" Prezime="Hadzic" Email="nije-email" Telefon="061111111" OcekivanoValidno="false" />
+  <Kontakt Ime="Lejla" Prezime="Hadzic" Email="lejla.hadzic@example.test" Telefon="12" OcekivanoValidno="false" />
+</Kontakti>
