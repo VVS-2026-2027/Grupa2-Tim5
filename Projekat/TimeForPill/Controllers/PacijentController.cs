@@ -871,10 +871,7 @@ namespace TimeForPill.Controllers
                 return RedirectToAction(nameof(Home));
             }
 
-            var odgodjenoVrijeme = MoveToAllowedDoseTime(
-                doza.VrijemeUzimanja.AddMinutes(30));
-            doza.VrijemeUzimanja = odgodjenoVrijeme;
-            doza.VrijemePodsjetnika = odgodjenoVrijeme.AddMinutes(-5);
+            ApplyPostponement(doza);
             doza.EmailPodsjetnikPoslan = false;
 
             if (doza.Terapija != null)
@@ -1424,6 +1421,15 @@ namespace TimeForPill.Controllers
             }
 
             return slot;
+        }
+
+        private static void ApplyPostponement(TerapijskaDoza doza)
+        {
+            var postponedAt = MoveToAllowedDoseTime(
+                doza.VrijemeUzimanja.AddMinutes(VremenskiSlotMinuta));
+
+            doza.VrijemeUzimanja = postponedAt;
+            doza.VrijemePodsjetnika = postponedAt.AddMinutes(-5);
         }
 
         private static bool IsAllowedDoseTime(DateTime candidate)
