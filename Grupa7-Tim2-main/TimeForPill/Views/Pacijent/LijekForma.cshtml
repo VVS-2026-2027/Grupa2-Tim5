@@ -1,0 +1,139 @@
+@model MedicineFormViewModel
+@{
+    ViewData["Title"] = Model.TerapijaId.HasValue ? "Azuriraj terapiju" : "Dodaj terapiju";
+}
+
+<section class="page-headline">
+    <div>
+        <p class="eyebrow">Moje terapije</p>
+        <h1>@ViewData["Title"]</h1>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="MojiLijekovi">Nazad</a>
+</section>
+
+<section class="form-shell">
+    <form asp-action="LijekForma" method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="TerapijaId" />
+        <input type="hidden" asp-for="PostojecaSlika" />
+
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+        @if (!Model.DostupniLijekovi.Any())
+        {
+            <div class="alert alert-warning">
+                Trenutno nema lijekova u zajednickom katalogu. Ljekar prvo treba dodati lijek u bazu.
+            </div>
+        }
+
+        <div class="form-grid">
+            <div class="span-2">
+                <label asp-for="LijekId" class="form-label"></label>
+                <select asp-for="LijekId" class="form-select" id="medicineSelect">
+                    <option value="">Odaberite lijek</option>
+                    @foreach (var lijek in Model.DostupniLijekovi)
+                    {
+                        <option value="@lijek.Id" data-category="@lijek.Kategorija" data-image="@lijek.Slika">
+                            @lijek.Naziv
+                        </option>
+                    }
+                </select>
+                <span asp-validation-for="LijekId" class="text-danger"></span>
+            </div>
+            <div>
+                <label asp-for="UkupanBrojDoza" class="form-label"></label>
+                <input asp-for="UkupanBrojDoza" class="form-control" />
+                <span asp-validation-for="UkupanBrojDoza" class="text-danger"></span>
+            </div>
+            <div>
+                <label asp-for="IntervalSati" class="form-label"></label>
+                <input asp-for="IntervalSati" class="form-control" />
+                <span asp-validation-for="IntervalSati" class="text-danger"></span>
+            </div>
+            <div>
+                <div class="form-check therapy-start-toggle">
+                    <input asp-for="AutomatskiPocetak" class="form-check-input" id="autoStartCheck" />
+                    <label asp-for="AutomatskiPocetak" class="form-check-label"></label>
+                </div>
+            </div>
+            <div>
+                <label asp-for="Pocetak" class="form-label"></label>
+                <input asp-for="Pocetak" asp-format="{0:yyyy-MM-ddTHH:mm}" type="datetime-local" class="form-control" id="firstDoseInput" />
+                <span asp-validation-for="Pocetak" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="catalog-preview mt-4" id="medicinePreview" hidden>
+            <div class="medicine-thumb large">
+                <img id="medicinePreviewImage" alt="Odabrani lijek" />
+            </div>
+            <div>
+                <p class="eyebrow">Odabrani lijek</p>
+                <h2 id="medicinePreviewName">@Model.Naziv</h2>
+                <p class="muted-text mb-0" id="medicinePreviewCategory">@Model.Kategorija</p>
+            </div>
+        </div>
+
+        <div class="button-row mt-4">
+            @if (Model.DostupniLijekovi.Any())
+            {
+                <button type="submit" class="btn btn-primary">Dodaj/Azuriraj terapiju</button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-primary" disabled>Dodaj/Azuriraj terapiju</button>
+            }
+            <a class="btn btn-outline-secondary" asp-action="MojiLijekovi">Odustani</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const medicineSelect = document.getElementById('medicineSelect');
+        const medicinePreview = document.getElementById('medicinePreview');
+        const medicinePreviewImage = document.getElementById('medicinePreviewImage');
+        const medicinePreviewName = document.getElementById('medicinePreviewName');
+        const medicinePreviewCategory = document.getElementById('medicinePreviewCategory');
+        const autoStartCheck = document.getElementById('autoStartCheck');
+        const firstDoseInput = document.getElementById('firstDoseInput');
+
+        function syncMedicinePreview() {
+            const selected = medicineSelect?.selectedOptions?.[0];
+            if (!selected || !selected.value) {
+                if (medicinePreview) {
+                    medicinePreview.hidden = true;
+                }
+                return;
+            }
+
+            const image = selected.dataset.image;
+            if (medicinePreviewName) {
+                medicinePreviewName.textContent = selected.textContent.trim();
+            }
+            if (medicinePreviewCategory) {
+                medicinePreviewCategory.textContent = selected.dataset.category || 'Terapija';
+            }
+            if (medicinePreviewImage) {
+                medicinePreviewImage.src = image || '@Url.Content("~/images/generic-medicine.jpg")';
+            }
+            if (medicinePreview) {
+                medicinePreview.hidden = false;
+            }
+        }
+
+        medicineSelect?.addEventListener('change', syncMedicinePreview);
+        syncMedicinePreview();
+
+        function syncFirstDoseInput() {
+            if (!firstDoseInput || !autoStartCheck) {
+                return;
+            }
+
+            firstDoseInput.disabled = autoStartCheck.checked;
+        }
+
+        autoStartCheck?.addEventListener('change', syncFirstDoseInput);
+        syncFirstDoseInput();
+    </script>
+}

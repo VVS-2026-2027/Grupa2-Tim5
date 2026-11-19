@@ -1,0 +1,58 @@
+@model DoctorDashboardViewModel
+@{
+    ViewData["Title"] = "Ljekar Pocetna";
+}
+
+<section class="page-headline">
+    <div>
+        <p class="eyebrow">Ljekar</p>
+        <h1>Dobro dosli, @Model.Ime</h1>
+    </div>
+    <a class="btn btn-primary" asp-action="Zahtjevi">Svi zahtjevi</a>
+</section>
+
+<section class="stat-grid">
+    <article class="stat-card patient-stat-blue">
+        <small>Ukupno zahtjeva</small>
+        <strong>@Model.BrojZahtjeva</strong>
+    </article>
+
+    <article class="stat-card patient-stat-green">
+        <small>Obradjeni zahtjevi</small>
+        <strong>@Model.BrojObradjenihZahtjeva</strong>
+    </article>
+
+    <article class="stat-card patient-stat-red">
+        <small>Cekaju obradu</small>
+        <strong>@Model.BrojNeobradjenihZahtjeva</strong>
+    </article>
+</section>
+
+<section class="app-card mt-4">
+    <div class="section-row">
+        <div>
+            <p class="eyebrow">Pregled aktivnosti</p>
+            <h2>Nedavno obradjeni zahtjevi</h2>
+        </div>
+    </div>
+
+    @if (!Model.ZadnjaCetiriPotvrdjena.Any())
+    {
+        <p class="muted-text mb-0">Nema potvrdjenih zahtjeva.</p>
+    }
+    else
+    {
+        <div class="therapy-list">
+            @foreach (var zahtjev in Model.ZadnjaCetiriPotvrdjena)
+            {
+                <a class="therapy-row linked-row" asp-action="ZahtjevDetalji" asp-route-id="@zahtjev.Id">
+                    <div>
+                        <strong>@zahtjev.Naziv</strong>
+                        <small>@zahtjev.Pacijent - @zahtjev.Lijek</small>
+                    </div>
+                    <span class="status-badge status-@zahtjev.Status.ToString().ToLower()">@zahtjev.Status</span>
+                </a>
+            }
+        </div>
+    }
+</section>

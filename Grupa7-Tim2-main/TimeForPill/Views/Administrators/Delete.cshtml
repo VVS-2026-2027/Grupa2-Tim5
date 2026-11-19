@@ -1,0 +1,22 @@
+@model Administrator
+
+@{
+    ViewData["Title"] = "Brisanje administratora";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Korisnici</p>
+        <h1>Brisanje administratora</h1>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index">Nazad</a>
+</div>
+
+<div class="details-shell">
+    <p class="lead mb-4">Da li zelite obrisati administratora <strong>@Model.Ime @Model.Prezime</strong>?</p>
+    <form asp-action="Delete" method="post">
+        <input type="hidden" asp-for="Id" />
+        <button type="submit" class="btn btn-danger">Obrisi</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Odustani</a>
+    </form>
+</div>

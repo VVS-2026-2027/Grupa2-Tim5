@@ -1,0 +1,23 @@
+@model Lijek
+
+@{
+    ViewData["Title"] = "Brisanje lijeka";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Katalog</p>
+        <h1>Brisanje lijeka</h1>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index">Nazad</a>
+</div>
+
+<div class="details-shell">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <p class="lead mb-4">Da li zelite obrisati lijek <strong>@Model.Naziv</strong>?</p>
+    <form asp-action="Delete" method="post">
+        <input type="hidden" asp-for="Id" />
+        <button type="submit" class="btn btn-danger">Obrisi</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Odustani</a>
+    </form>
+</div>

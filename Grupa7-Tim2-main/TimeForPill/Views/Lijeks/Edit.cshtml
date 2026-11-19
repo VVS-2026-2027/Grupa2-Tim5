@@ -1,0 +1,55 @@
+@model Lijek
+
+@{
+    ViewData["Title"] = "Uredi lijek";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Katalog</p>
+        <h1>Uredi lijek</h1>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index">Nazad</a>
+</div>
+
+<div class="form-shell">
+    <form asp-action="Edit" method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="mb-3"></div>
+        <div class="form-grid">
+            <div>
+                <label asp-for="Naziv" class="form-label"></label>
+                <input asp-for="Naziv" class="form-control" />
+                <span asp-validation-for="Naziv"></span>
+            </div>
+            <div>
+                <label asp-for="Kategorija" class="form-label"></label>
+                <input asp-for="Kategorija" class="form-control" />
+                <span asp-validation-for="Kategorija"></span>
+            </div>
+            <div>
+                <label asp-for="Slika" class="form-label">URL slike</label>
+                <input asp-for="Slika" class="form-control" />
+                <span asp-validation-for="Slika"></span>
+            </div>
+            <div>
+                <label for="SlikaFile" class="form-label">Nova slika</label>
+                <input id="SlikaFile" name="SlikaFile" type="file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.webp" />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.Slika))
+            {
+                <div class="span-2">
+                    <img class="pill-img" src="@Model.Slika" alt="@Model.Naziv" />
+                </div>
+            }
+        </div>
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Sacuvaj izmjene</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Odustani</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

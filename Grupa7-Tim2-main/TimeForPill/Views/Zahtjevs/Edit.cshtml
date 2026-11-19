@@ -1,0 +1,53 @@
+@model Zahtjev
+
+@{
+    ViewData["Title"] = "Uredi zahtjev";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Obrada</p>
+        <h1>Uredi zahtjev</h1>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index">Nazad</a>
+</div>
+
+<div class="form-shell">
+    <form asp-action="Edit" method="post">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="DatumKreiranja" />
+        <div asp-validation-summary="ModelOnly" class="mb-3"></div>
+        <div class="form-grid">
+            <div>
+                <label asp-for="Naziv" class="form-label"></label>
+                <input asp-for="Naziv" class="form-control" />
+                <span asp-validation-for="Naziv"></span>
+            </div>
+            <div>
+                <label asp-for="Status" class="form-label"></label>
+                <select asp-for="Status" asp-items="Html.GetEnumSelectList<StatusZahtjeva>()" class="form-select"></select>
+                <span asp-validation-for="Status"></span>
+            </div>
+            <div class="span-2">
+                <label asp-for="TerapijaId" class="form-label"></label>
+                <select asp-for="TerapijaId" asp-items="ViewBag.TerapijaId" class="form-select">
+                    <option value="">Odaberite terapiju</option>
+                </select>
+                <span asp-validation-for="TerapijaId"></span>
+            </div>
+            <div class="span-2">
+                <label asp-for="Sadrzaj" class="form-label"></label>
+                <textarea asp-for="Sadrzaj" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="Sadrzaj"></span>
+            </div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Sacuvaj izmjene</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Odustani</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}

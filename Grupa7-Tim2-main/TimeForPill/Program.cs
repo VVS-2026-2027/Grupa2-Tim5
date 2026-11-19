@@ -1,0 +1,312 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using TimeForPill.Data;
+using TimeForPill.Models;
+using TimeForPill.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString, sqlOptions =>
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null)));
+
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 6;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/Login";
+});
+
+builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<IEmailService, EmailService>();
+builder.Services.AddScoped<IDoseWorkflowService, DoseWorkflowService>();
+builder.Services.AddHostedService<DoseReminderWorker>();
+
+builder.Services.AddControllersWithViews();
+
+var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+
+        context.Database.Migrate();
+
+        if (!context.Database.CanConnect())
+        {
+            throw new InvalidOperationException(
+                "Aplikacija ne moze uspostaviti vezu sa bazom iz DefaultConnection.");
+        }
+
+        BackfillMissingDoses(context);
+        BackfillDailyStatistics(context);
+        await SeedDefaultAdministratorAsync(services);
+
+        var conn = context.Database.GetDbConnection();
+
+        logger.LogInformation(
+            "Database connection OK. DataSource={DataSource}, Database={Database}",
+            conn.DataSource,
+            conn.Database);
+
+        Console.WriteLine(
+            $"Database connection OK. DataSource={conn.DataSource}, Database={conn.Database}");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex,
+            "An error occurred while migrating or initializing the database.");
+
+        Console.WriteLine(
+            "An error occurred while migrating or initializing the database. " +
+            "See logs for details: " + ex.Message);
+
+        throw;
+    }
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseMigrationsEndPoint();
+}
+else
+{
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+
+app.UseRouting();
+
+app.UseAuthentication();
+
+app.UseAuthorization();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Account}/{action=Login}/{id?}");
+
+app.MapRazorPages();
+
+app.Run();
+
+static void BackfillMissingDoses(ApplicationDbContext context)
+{
+    var terapijeBezDoza = context.Terapije
+        .Where(t => !context.TerapijskeDoze.Any(d => d.TerapijaId == t.Id))
+        .ToList();
+
+    foreach (var terapija in terapijeBezDoza)
+    {
+        var totalDoses = terapija.UkupanBrojDoza <= 0
+            ? 1
+            : terapija.UkupanBrojDoza;
+        var intervalHours = terapija.IntervalSati <= 0
+            ? 24
+            : terapija.IntervalSati;
+        var start = terapija.Pocetak == default
+            ? DateTime.Now
+            : terapija.Pocetak;
+
+        for (var index = 0; index < totalDoses; index++)
+        {
+            var scheduledAt = start.AddHours(intervalHours * index);
+            context.TerapijskeDoze.Add(new TerapijskaDoza
+            {
+                TerapijaId = terapija.Id,
+                RedniBroj = index + 1,
+                VrijemeUzimanja = scheduledAt,
+                OriginalnoVrijemeUzimanja = scheduledAt,
+                VrijemePodsjetnika = scheduledAt.AddMinutes(-5),
+                Status = StatusDoze.Cekanje
+            });
+        }
+
+        terapija.UkupanBrojDoza = totalDoses;
+        if (terapija.BrojDozaPoObnovi <= 0)
+        {
+            terapija.BrojDozaPoObnovi = totalDoses;
+        }
+
+        terapija.IntervalSati = intervalHours;
+        terapija.Kraj = start.AddHours(intervalHours * Math.Max(0, totalDoses - 1));
+    }
+
+    if (terapijeBezDoza.Count > 0)
+    {
+        context.SaveChanges();
+    }
+}
+
+static void BackfillDailyStatistics(ApplicationDbContext context)
+{
+    var completedDoses = context.TerapijskeDoze
+        .Include(d => d.Terapija)
+        .Where(d =>
+            d.Terapija != null &&
+            d.Terapija.PacijentId != null &&
+            (d.Status == StatusDoze.Uzeto ||
+                d.Status == StatusDoze.Propusteno))
+        .ToList();
+
+    foreach (var group in completedDoses
+        .GroupBy(d => new
+        {
+            PacijentId = d.Terapija!.PacijentId!,
+            Datum = GetDoseStatisticDate(d)
+        }))
+    {
+        var statistic = context.PacijentDnevneStatistike
+            .FirstOrDefault(s =>
+                s.PacijentId == group.Key.PacijentId &&
+                s.Datum == group.Key.Datum);
+
+        if (statistic == null)
+        {
+            statistic = new PacijentDnevnaStatistika
+            {
+                PacijentId = group.Key.PacijentId,
+                Datum = group.Key.Datum
+            };
+
+            context.PacijentDnevneStatistike.Add(statistic);
+        }
+
+        statistic.BrojUzetih = Math.Max(
+            statistic.BrojUzetih,
+            group.Count(d => d.Status == StatusDoze.Uzeto));
+        statistic.BrojPropustenih = Math.Max(
+            statistic.BrojPropustenih,
+            group.Count(d => d.Status == StatusDoze.Propusteno));
+    }
+
+    if (completedDoses.Count > 0)
+    {
+        context.SaveChanges();
+    }
+}
+
+static DateTime GetDoseStatisticDate(TerapijskaDoza doza)
+{
+    return (doza.OriginalnoVrijemeUzimanja ?? doza.VrijemeUzimanja).Date;
+}
+
+static async Task SeedDefaultAdministratorAsync(IServiceProvider services)
+{
+    const string email = "ebosnjakov2@etf.unsa.ba";
+    const string password = "Admin123";
+
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    var existingUser = await userManager.FindByEmailAsync(email);
+
+    if (existingUser == null)
+    {
+        var administrator = new Administrator
+        {
+            Ime = "Eldar",
+            Prezime = "Bosnjakovic",
+            Email = email,
+            UserName = email,
+            EmailConfirmed = true,
+            Spol = Spol.Musko,
+            DatumRodjenja = new DateTime(2005, 2, 21),
+            datumImenovanja = DateTime.Today
+        };
+
+        var createResult = await userManager.CreateAsync(
+            administrator,
+            password);
+        if (!createResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Default administrator nije kreiran: " +
+                string.Join("; ", createResult.Errors.Select(e => e.Description)));
+        }
+
+        return;
+    }
+
+    if (existingUser is not Administrator admin)
+    {
+        logger.LogWarning(
+            "Default administrator nije kreiran jer email {Email} vec pripada korisniku drugog tipa.",
+            email);
+        return;
+    }
+
+    admin.Ime = "Eldar";
+    admin.Prezime = "Bosnjakovic";
+    admin.Email = email;
+    admin.UserName = email;
+    admin.EmailConfirmed = true;
+    admin.Spol = Spol.Musko;
+    admin.DatumRodjenja = new DateTime(2005, 2, 21);
+    if (admin.datumImenovanja == default)
+    {
+        admin.datumImenovanja = DateTime.Today;
+    }
+
+    var updateResult = await userManager.UpdateAsync(admin);
+    if (!updateResult.Succeeded)
+    {
+        throw new InvalidOperationException(
+            "Default administrator nije azuriran: " +
+            string.Join("; ", updateResult.Errors.Select(e => e.Description)));
+    }
+
+    if (await userManager.HasPasswordAsync(admin))
+    {
+        var removeResult = await userManager.RemovePasswordAsync(admin);
+        if (!removeResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Lozinka default administratora nije uklonjena: " +
+                string.Join("; ", removeResult.Errors.Select(e => e.Description)));
+        }
+    }
+
+    var passwordResult = await userManager.AddPasswordAsync(admin, password);
+    if (!passwordResult.Succeeded)
+    {
+        throw new InvalidOperationException(
+            "Lozinka default administratora nije postavljena: " +
+            string.Join("; ", passwordResult.Errors.Select(e => e.Description)));
+    }
+}

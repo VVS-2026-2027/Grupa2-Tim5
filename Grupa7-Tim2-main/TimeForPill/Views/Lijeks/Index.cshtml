@@ -1,0 +1,87 @@
+@model IEnumerable<Lijek>
+
+@{
+    ViewData["Title"] = "Lijekovi";
+    var lijekovi = Model.ToList();
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Katalog</p>
+        <h1>Lijekovi</h1>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">Dodaj lijek</a>
+</div>
+
+<div class="table-shell table-responsive">
+    <div class="admin-patient-toolbar" aria-label="Filteri lijekova">
+        <label class="admin-patient-control">
+            <span class="admin-patient-control-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            </span>
+            <input id="medicineSearch" type="search" placeholder="Pretraži lijekove..." autocomplete="off" />
+        </label>
+    </div>
+
+    <table class="table" data-admin-medicines-table>
+        <thead>
+            <tr>
+                <th>Slika</th>
+                <th>Naziv</th>
+                <th>Kategorija</th>
+                <th class="text-end">Akcije</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in lijekovi)
+        {
+            <tr data-medicine-row
+                data-search="@($"{item.Naziv} {item.Kategorija}")">
+                <td>
+                    @if (!string.IsNullOrWhiteSpace(item.Slika))
+                    {
+                        <img class="pill-img" src="@item.Slika" alt="@item.Naziv" />
+                    }
+                    else
+                    {
+                        <span class="text-muted">Nema slike</span>
+                    }
+                </td>
+                <td><strong>@item.Naziv</strong></td>
+                <td>@item.Kategorija</td>
+                <td>
+                    <div class="actions">
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Uredi</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id">Detalji</a>
+                        <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Obrisi</a>
+                    </div>
+                </td>
+            </tr>
+        }
+        <tr id="medicinesEmptyRow" hidden>
+            <td colspan="4" class="text-center text-muted py-4">Nema lijekova za odabranu pretragu.</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="admin-patient-footer" aria-label="Paginacija lijekova">
+        <div class="admin-patient-page-size">
+            <span>Prikaži</span>
+            <select id="medicinePageSize" aria-label="Broj lijekova po stranici">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span>od <span id="medicineResultCount">@lijekovi.Count</span> rezultata</span>
+        </div>
+
+        <div class="admin-patient-pagination">
+            <button type="button" data-medicine-page="first" aria-label="Prva stranica">«</button>
+            <button type="button" data-medicine-page="prev" aria-label="Prethodna stranica">‹</button>
+            <span id="medicineCurrentPage">1</span>
+            <button type="button" data-medicine-page="next" aria-label="Sljedeca stranica">›</button>
+            <button type="button" data-medicine-page="last" aria-label="Zadnja stranica">»</button>
+        </div>
+    </div>
+</div>
