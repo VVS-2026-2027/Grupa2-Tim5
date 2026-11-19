@@ -77,7 +77,26 @@ DoseWorkflowServiceTests             uspješan email podsjetnik, nema emaila,
 PacijentControllerTddTests           dupli neobrađeni zahtjev za obnovu i
                                      odgoda iz 22:30 na sljedećih 06:00.
 
-ZAVRSNI BROJ MSTEST TESTOVA: 24 prošla, 0 palih, 0 preskocenih.
+TRENUTNI BROJ MSTEST TESTOVA: 82 prošla, 0 palih, 0 preskocenih.
+
+Dodatne testne klase (nastavak rada na unitTest):
+- MigrationCoverageTests: Up/Down operacije i ModelSnapshot za sve migracije.
+- ModelAndViewModelCoverageTests: validacije, podrazumijevane vrijednosti i
+  ViewModel modeli.
+- ServiceEdgeCaseTests: EmailService nevalidna konfiguracija i
+  DoseReminderWorker uspjeh/greska zavisnosti.
+- CrudControllerTests: Terapijas, Notifikacijas i Zahtjevs CRUD/validacija.
+- HomeAndKorisnikControllerTests: navigacija po ulozi i nepostojeći korisnik.
+- AdministrationAndMedicineControllerTests: katalog lijekova, administrator
+  CRUD, odobravanje/odbijanje naloga i profil.
+- PacijentsControllerTests: kontakt email, automatska dodjela ljekara,
+  izmjena, audit i brisanje zavisnosti.
+- LjekarsControllerTests: CRUD ljekara, razvezivanje pacijenata i ticket-a.
+- AccountControllerTests: Login, Register, ConfirmEmail i Logout tokovi.
+- PacijentSchedulingTests: kolizije termina, nocni period, tacan raspored i
+  odgoda doze.
+- LjekarControllerWorkflowTests: dashboard, pacijentovi lijekovi, zahtjev za
+  obnovu, dodavanje doza i raspored obnove.
 
 4. MOCK OBJEKTI I IZOLACIJA
 ---------------------------
@@ -158,11 +177,12 @@ Komanda:
   dotnet test .\Projekat\TimeForPill.Tests\TimeForPill.Tests.csproj --no-build --no-restore --collect:"XPlat Code Coverage" --results-directory .\TestResults --nologo --verbosity minimal
 
 Rezultat za cijeli TimeForPill assembly, bez filtera i bez isključenja:
-  Line coverage:   4,4%  (663 / 15.001 linija)
-  Branch coverage: 4,5%  (97 / 2.126 grana)
+  Line coverage:   82,7%  (12.410 / 15.001 linija)
+  Branch coverage: 21,8%  (465 / 2.126 grana)
 
 Coverage XML:
-  TestResults/82b7d247-d839-4bfd-9b9e-157511e5175e/coverage.cobertura.xml
+  TestResults/coverage-c1d7e6b9-4822-49d5-a1c6-56b164192962/
+  8660a338-d5b7-46f2-9cd3-04934858aca5/coverage.cobertura.xml
 
 HTML/Markdown izvještaj generisan komandom:
   reportgenerator -reports:"<coverage.cobertura.xml>" -targetdir:".\CoverageReport" -reporttypes:"Html;MarkdownSummary"
@@ -180,7 +200,9 @@ Odabrane produkcijske klase                  Linije         Line     Branch
 ApplicationDbContext                         96 / 96       100,0%   N/A
 DoseWorkflowService                          292 / 329     88,7%    66,6%
 EmailSettings                                28 / 33       84,8%    50,0%
-PacijentController                           185 / 1.419   13,0%    9,0%
+PacijentController                           298 / 1.419   21,0%    (vidi XML)
+LjekarController                             365 / 516     70,7%    (vidi XML)
+Program                                      0 / 238       0,0%     (vidi XML)
 Terapija                                     12 / 14       85,7%    N/A
 TerapijskaDoza                               12 / 12       100,0%   N/A
 Zahtjev                                      5 / 7         71,4%    N/A
@@ -194,10 +216,13 @@ nepokrivenih kontrolera, migracija, view-modela, Program, EmailService i
 DoseReminderWorker.
 
 STATUS CILJA OD 90%: NIJE OSTVAREN.
-Nije dozvoljeno prikazivati ovaj rezultat kao 90%. Za 90% ukupno potrebno je
-značajno proširiti testove za sve CRUD kontrolere, Account/Admin/Ljekar tokove,
-EmailService/DoseReminderWorker, Program startup i sve preostale modele. To
-nije zamijenjeno filtrima niti praznim testovima.
+Rezultat je podignut sa 4,4% na 82,7%, ali to nije 90%. Nisu korišteni filteri
+ili isključenja radi podizanja procenta. Najveci preostali blokovi su
+PacijentController (21,0%), Program (0,0%) i preostale nisko pokrivene klase.
+Program je top-level startup s obaveznim SQL Server Migrate/CanConnect tokom
+pokretanja; za realno unit-testiranje njegovih inicijalizatora potreban je
+mali refaktor u izdvojenu testabilnu klasu ili integracijski host sa
+izolovanom bazom. To mora biti uradjeno prije tvrdnje da je cilj ostvaren.
 
 7. KOMANDE ZA PONAVLJANJE
 -------------------------
@@ -219,7 +244,7 @@ TDD funkcionalnost 2:
 
 Zavrsni rezultat provjere:
   Build: Build succeeded, 0 Warning(s), 0 Error(s).
-  Testovi: 24 prošla, 0 palih, 0 preskocenih.
+  Testovi: 82 prošla, 0 palih, 0 preskocenih.
 
 8. OTVORENE OBAVEZE PRIJE PREDAJE
 ---------------------------------
