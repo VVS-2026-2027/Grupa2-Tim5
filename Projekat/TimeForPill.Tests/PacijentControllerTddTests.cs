@@ -57,6 +57,44 @@ public class PacijentControllerTddTests
         Assert.AreEqual(1, await context.Zahtjevi.CountAsync());
     }
 
+    [TestMethod]
+    [TestCategory("TDD-F2")]
+    public async Task Odgodi_EveningDose_MovesDoseToNextAllowedMorning()
+    {
+        await using var context = CreateContext();
+        var patient = CreatePatient("patient-2");
+        var therapy = new Terapija
+        {
+            Naziv = "Vecernja terapija",
+            PacijentId = patient.Id,
+            Pacijent = patient,
+            Status = StatusTerapije.Cekanje,
+            Pocetak = DateTime.Today,
+            Kraj = DateTime.Today,
+            DnevnaDoza = 1,
+            UkupanBrojDoza = 1,
+            BrojDozaPoObnovi = 1,
+            IntervalSati = 24
+        };
+        var dose = new TerapijskaDoza
+        {
+            Terapija = therapy,
+            RedniBroj = 1,
+            VrijemeUzimanja = DateTime.Today.AddHours(22).AddMinutes(30),
+            OriginalnoVrijemeUzimanja = DateTime.Today.AddHours(22).AddMinutes(30),
+            VrijemePodsjetnika = DateTime.Today.AddHours(22).AddMinutes(25),
+            Status = StatusDoze.Cekanje
+        };
+        context.AddRange(patient, therapy, dose);
+        await context.SaveChangesAsync();
+        var controller = CreateController(context, patient);
+
+        await controller.Odgodi(dose.Id);
+
+        Assert.AreEqual(DateTime.Today.AddDays(1).AddHours(6), dose.VrijemeUzimanja);
+        Assert.AreEqual(DateTime.Today.AddDays(1).AddHours(5).AddMinutes(55), dose.VrijemePodsjetnika);
+    }
+
     private static ApplicationDbContext CreateContext() => new(
         new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
@@ -66,10 +104,13 @@ public class PacijentControllerTddTests
         ApplicationDbContext context,
         Pacijent patient)
     {
-        var userManager = CreateUserManager(patient.Id);
+        var userManager = CreateUserManager(patient);
+        var workflow = new Mock<IDoseWorkflowService>();
+        workflow.Setup(service => service.RefreshMissedDosesAsync())
+            .Returns(Task.CompletedTask);
         var controller = new PacijentController(
             context,
-            new Mock<IDoseWorkflowService>().Object,
+            workflow.Object,
             new Mock<IEmailService>(MockBehavior.Strict).Object,
             Options.Create(new EmailSettings()),
             new Mock<IWebHostEnvironment>().Object,
@@ -92,7 +133,7 @@ public class PacijentControllerTddTests
         return controller;
     }
 
-    private static Mock<UserManager<ApplicationUser>> CreateUserManager(string userId)
+    private static Mock<UserManager<ApplicationUser>> CreateUserManager(Pacijent patient)
     {
         var store = new Mock<IUserStore<ApplicationUser>>();
         var manager = new Mock<UserManager<ApplicationUser>>(
@@ -106,7 +147,9 @@ public class PacijentControllerTddTests
             null!,
             null!);
         manager.Setup(service => service.GetUserId(It.IsAny<ClaimsPrincipal>()))
-            .Returns(userId);
+            .Returns(patient.Id);
+        manager.Setup(service => service.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
+            .ReturnsAsync(patient);
 
         return manager;
     }
