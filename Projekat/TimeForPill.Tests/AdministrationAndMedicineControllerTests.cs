@@ -162,6 +162,12 @@ public class AdministrationAndMedicineControllerTests
         Assert.AreEqual("Ljekar", ((AccountApprovalRequestViewModel)details!.Model!).Uloga);
         Assert.IsInstanceOfType(await controller.ZahtjevNalogaDetalji("missing"), typeof(NotFoundResult));
 
+        var doctors = await controller.PregledLjekara() as ViewResult;
+        Assert.AreEqual(doctor.Id, ((List<Ljekar>)doctors!.Model!).Single().Id);
+        var patients = await controller.PregledPacijenata() as ViewResult;
+        Assert.AreEqual("patient", ((List<Pacijent>)patients!.Model!).Single().Id);
+        Assert.IsInstanceOfType(await controller.Profil(), typeof(ViewResult));
+
         manager.Setup(m => m.GetUserAsync(It.IsAny<ClaimsPrincipal>())).ReturnsAsync(new Pacijent());
         Assert.IsInstanceOfType(await controller.PregledPacijenata(), typeof(RedirectToActionResult));
     }

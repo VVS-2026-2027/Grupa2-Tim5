@@ -26,8 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\TimeForPill\Tests\podaci.csv"
-          Link="TestData\podaci.csv"
+    <None Update="TestData\podaci.csv"
           CopyToOutputDirectory="PreserveNewest" />
     <None Update="TestData\podaci.xml"
           CopyToOutputDirectory="PreserveNewest" />

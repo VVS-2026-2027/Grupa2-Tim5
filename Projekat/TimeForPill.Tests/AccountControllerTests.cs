@@ -127,6 +127,59 @@ public class AccountControllerTests
     }
 
     [TestMethod]
+    public async Task RegisterPatient_AssignsLeastRecentlyServedDoctorAndSendsConfirmation()
+    {
+        await using var context = CreateContext();
+        var olderDoctor = new Ljekar { Id = "doctor-old", Ime = "A", Prezime = "Doctor", Email = "old-doctor@test" };
+        var newerDoctor = new Ljekar { Id = "doctor-new", Ime = "B", Prezime = "Doctor", Email = "new-doctor@test" };
+        var assignedPatient = new Pacijent
+        {
+            Id = "assigned", Ime = "Existing", Prezime = "Patient", Ljekar = olderDoctor,
+            LjekarId = olderDoctor.Id, DatumDodjeleLjekara = DateTime.Today
+        };
+        context.AddRange(olderDoctor, newerDoctor, assignedPatient);
+        await context.SaveChangesAsync();
+        var (users, signIn) = CreateIdentity();
+        Pacijent? created = null;
+        users.Setup(manager => manager.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
+            .Callback<ApplicationUser, string>((user, _) => created = user as Pacijent)
+            .ReturnsAsync(IdentityResult.Success);
+        users.Setup(manager => manager.GenerateEmailConfirmationTokenAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync("confirmation-token");
+        var email = new Mock<IEmailService>();
+        email.Setup(service => service.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), true))
+            .Returns(Task.CompletedTask);
+
+        var result = await CreateController(context, users.Object, signIn.Object, email.Object)
+            .Register(RegisterModel(KorisnickaUloga.Pacijent));
+
+        Assert.IsInstanceOfType(result, typeof(RedirectToActionResult));
+        Assert.IsNotNull(created);
+        Assert.AreEqual(newerDoctor.Id, created.LjekarId);
+        Assert.IsNotNull(created.KontaktOsoba);
+        email.Verify(service => service.SendEmailAsync("new@test", "TimeForPill potvrda email adrese", It.IsAny<string>(), true), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task RegisterPatient_EmailFailureKeepsAccountAndReportsDeliveryProblem()
+    {
+        await using var context = CreateContext();
+        var (users, signIn) = CreateIdentity();
+        users.Setup(manager => manager.CreateAsync(It.IsAny<ApplicationUser>(), It.IsAny<string>()))
+            .ReturnsAsync(IdentityResult.Success);
+        users.Setup(manager => manager.GenerateEmailConfirmationTokenAsync(It.IsAny<ApplicationUser>()))
+            .ReturnsAsync("confirmation-token");
+        var email = new Mock<IEmailService>();
+        email.Setup(service => service.SendEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), true))
+            .ThrowsAsync(new InvalidOperationException("smtp unavailable"));
+        var controller = CreateController(context, users.Object, signIn.Object, email.Object);
+
+        Assert.IsInstanceOfType(await controller.Register(RegisterModel(KorisnickaUloga.Pacijent)), typeof(RedirectToActionResult));
+
+        Assert.AreEqual("Nalog je kreiran, ali email za potvrdu nije poslan. Provjerite SMTP postavke.", controller.TempData["Error"]);
+    }
+
+    [TestMethod]
     public async Task ConfirmEmail_HandlesInvalidLinksUsersRolesAndIdentityResult()
     {
         await using var context = CreateContext();
