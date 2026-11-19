@@ -512,6 +512,18 @@ namespace TimeForPill.Controllers
                 return View(model);
             }
 
+            var pendingRequestExists = await _context.Zahtjevi.AnyAsync(z =>
+                z.TerapijaId == terapija.Id &&
+                z.Status == StatusZahtjeva.Neobraden);
+            if (pendingRequestExists)
+            {
+                ModelState.AddModelError(
+                    string.Empty,
+                    "Za odabranu terapiju vec postoji neobraden zahtjev za obnovu.");
+
+                return View(model);
+            }
+
             if (model.PreostaloDoza == 0)
             {
                 model.PreostaloDoza = await _context.TerapijskeDoze
