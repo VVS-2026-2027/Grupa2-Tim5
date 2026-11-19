@@ -1,0 +1,25 @@
+@model Notifikacija
+
+@{
+    ViewData["Title"] = "Detalji notifikacije";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Podsjetnici</p>
+        <h1>@Model.Naziv</h1>
+    </div>
+    <div class="actions">
+        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Uredi</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">Nazad</a>
+    </div>
+</div>
+
+<div class="details-shell">
+    <dl class="row mb-0">
+        <dt class="col-sm-3">Poruka</dt>
+        <dd class="col-sm-9">@Model.Poruka</dd>
+        <dt class="col-sm-3">Terapija</dt>
+        <dd class="col-sm-9">@(Model.Terapija?.Naziv ?? "Nije odabrana")</dd>
+    </dl>
+</div>

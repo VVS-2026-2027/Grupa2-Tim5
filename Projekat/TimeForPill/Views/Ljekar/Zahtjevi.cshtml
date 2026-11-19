@@ -1,0 +1,76 @@
+@model IReadOnlyList<RequestListItemViewModel>
+@{
+    ViewData["Title"] = "Zahtjevi";
+}
+
+<section class="page-headline">
+    <div>
+        <p class="eyebrow">Ljekar</p>
+        <h1>Zahtjevi</h1>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Home">Nazad</a>
+</section>
+
+<section class="table-shell">
+    <div class="admin-patient-toolbar" aria-label="Filteri zahtjeva">
+        <label class="admin-patient-control">
+            <span class="admin-patient-control-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+            </span>
+            <input id="doctorRequestSearch" type="search" placeholder="Pretrazi zahtjeve..." autocomplete="off" />
+        </label>
+    </div>
+
+    <table class="table responsive-table" data-doctor-requests-table>
+        <thead>
+            <tr>
+                <th>Naziv</th>
+                <th>Pacijent</th>
+                <th>Lijek</th>
+                <th>Datum</th>
+                <th>Status</th>
+                <th class="text-end">Akcija</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var zahtjev in Model)
+            {
+                <tr data-doctor-request-row
+                    data-search="@($"{zahtjev.Naziv} {zahtjev.Pacijent} {zahtjev.Lijek} {zahtjev.Status}")">
+                    <td>@zahtjev.Naziv</td>
+                    <td>@zahtjev.Pacijent</td>
+                    <td>@zahtjev.Lijek</td>
+                    <td>@zahtjev.DatumKreiranja.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td><span class="status-badge status-@zahtjev.Status.ToString().ToLower()">@zahtjev.Status</span></td>
+                    <td class="actions">
+                        <a class="btn btn-outline-secondary btn-sm" asp-action="ZahtjevDetalji" asp-route-id="@zahtjev.Id">Pregled</a>
+                    </td>
+                </tr>
+            }
+            <tr id="doctorRequestsEmptyRow" hidden>
+                <td colspan="6" class="text-center text-muted py-4">Nema zahtjeva za odabranu pretragu.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="admin-patient-footer" aria-label="Paginacija zahtjeva">
+        <div class="admin-patient-page-size">
+            <span>Prikazi</span>
+            <select id="doctorRequestPageSize" aria-label="Broj zahtjeva po stranici">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+            <span>od <span id="doctorRequestResultCount">@Model.Count</span> rezultata</span>
+        </div>
+
+        <div class="admin-patient-pagination">
+            <button type="button" data-doctor-request-page="first" aria-label="Prva stranica">&laquo;</button>
+            <button type="button" data-doctor-request-page="prev" aria-label="Prethodna stranica">&lsaquo;</button>
+            <span id="doctorRequestCurrentPage">1</span>
+            <button type="button" data-doctor-request-page="next" aria-label="Sljedeca stranica">&rsaquo;</button>
+            <button type="button" data-doctor-request-page="last" aria-label="Zadnja stranica">&raquo;</button>
+        </div>
+    </div>
+</section>

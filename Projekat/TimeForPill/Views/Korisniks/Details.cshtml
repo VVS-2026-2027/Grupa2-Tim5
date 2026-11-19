@@ -1,0 +1,29 @@
+@model ApplicationUser
+
+@{
+    ViewData["Title"] = "Detalji korisnika";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Pregled</p>
+        <h1>@Model.Ime @Model.Prezime</h1>
+    </div>
+    <div class="actions">
+        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Uredi</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">Nazad</a>
+    </div>
+</div>
+
+<div class="details-shell">
+    <dl class="row mb-0">
+        <dt class="col-sm-3">Tip</dt>
+        <dd class="col-sm-9">@Model.GetType().Name</dd>
+        <dt class="col-sm-3">Email</dt>
+        <dd class="col-sm-9">@Model.Email</dd>
+        <dt class="col-sm-3">Datum rodjenja</dt>
+        <dd class="col-sm-9">@Model.DatumRodjenja.ToString("dd.MM.yyyy")</dd>
+        <dt class="col-sm-3">Spol</dt>
+        <dd class="col-sm-9">@Model.Spol</dd>
+    </dl>
+</div>

@@ -1,0 +1,49 @@
+@model IEnumerable<Terapija>
+
+@{
+    ViewData["Title"] = "Terapije";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Plan terapije</p>
+        <h1>Terapije</h1>
+    </div>
+    <a class="btn btn-primary" asp-action="Create">Dodaj terapiju</a>
+</div>
+
+<div class="table-shell table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Naziv</th>
+                <th>Status</th>
+                <th>Period</th>
+                <th>Dnevna doza</th>
+                <th>Lijek</th>
+                <th>Pacijent</th>
+                <th class="text-end">Akcije</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td><strong>@item.Naziv</strong></td>
+                <td>@item.Status</td>
+                <td>@item.Pocetak.ToString("dd.MM.yyyy") - @item.Kraj.ToString("dd.MM.yyyy")</td>
+                <td>@item.DnevnaDoza</td>
+                <td>@(item.Lijek?.Naziv ?? "Nije odabran")</td>
+                <td>@(item.Pacijent == null ? "Nije odabran" : item.Pacijent.Ime + " " + item.Pacijent.Prezime)</td>
+                <td>
+                    <div class="actions">
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Uredi</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@item.Id">Detalji</a>
+                        <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Obrisi</a>
+                    </div>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

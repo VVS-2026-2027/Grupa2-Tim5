@@ -1,0 +1,31 @@
+@model Lijek
+
+@{
+    ViewData["Title"] = "Detalji lijeka";
+}
+
+<div class="page-header">
+    <div>
+        <p class="eyebrow">Katalog</p>
+        <h1>@Model.Naziv</h1>
+    </div>
+    <div class="actions">
+        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Uredi</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">Nazad</a>
+    </div>
+</div>
+
+<div class="details-shell">
+    @if (!string.IsNullOrWhiteSpace(Model.Slika))
+    {
+        <img class="pill-img mb-3" src="@Model.Slika" alt="@Model.Naziv" />
+    }
+    <dl class="row mb-0">
+        <dt class="col-sm-3">Naziv</dt>
+        <dd class="col-sm-9">@Model.Naziv</dd>
+        <dt class="col-sm-3">Kategorija</dt>
+        <dd class="col-sm-9">@Model.Kategorija</dd>
+        <dt class="col-sm-3">Slika</dt>
+        <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.Slika) ? "Nema slike" : Model.Slika)</dd>
+    </dl>
+</div>
