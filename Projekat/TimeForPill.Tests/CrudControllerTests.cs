@@ -7,7 +7,7 @@ using TimeForPill.Models;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class CrudControllerTests
+public class CrudControllerTests : UnitTestBase
 {
     [TestMethod]
     public async Task TerapijasController_GetActions_ReturnExpectedModelsAndNotFoundForInvalidIds()

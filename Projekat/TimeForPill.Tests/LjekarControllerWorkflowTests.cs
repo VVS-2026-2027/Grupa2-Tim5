@@ -16,7 +16,7 @@ using TimeForPill.ViewModels;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class LjekarControllerWorkflowTests
+public class LjekarControllerWorkflowTests : UnitTestBase
 {
     [TestMethod]
     public async Task DoctorViews_OnlyExposeAssignedPatientsRequestsAndMedicationState()

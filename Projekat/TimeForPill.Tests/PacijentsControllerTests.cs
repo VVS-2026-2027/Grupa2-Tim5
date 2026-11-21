@@ -12,7 +12,7 @@ using TimeForPill.Models;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class PacijentsControllerTests
+public class PacijentsControllerTests : UnitTestBase
 {
     [TestMethod]
     public async Task GetActions_ReturnModelsAndNotFoundForInvalidPatients()

@@ -5,7 +5,7 @@ using TimeForPill.ViewModels;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class ModelAndConfigurationTests
+public class ModelAndConfigurationTests : UnitTestBase
 {
     [DataTestMethod]
     [DynamicData(nameof(TestDataLoader.CsvTherapyCases), typeof(TestDataLoader), DynamicDataSourceType.Method)]

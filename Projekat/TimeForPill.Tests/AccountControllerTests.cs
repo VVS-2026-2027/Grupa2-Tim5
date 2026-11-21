@@ -16,7 +16,7 @@ using TimeForPill.ViewModels;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class AccountControllerTests
+public class AccountControllerTests : UnitTestBase
 {
     [TestMethod]
     public async Task LoginGet_ReturnsFormForAnonymousAndRoleHomeForAuthenticatedUser()

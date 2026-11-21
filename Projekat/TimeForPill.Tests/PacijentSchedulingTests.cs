@@ -6,7 +6,7 @@ using TimeForPill.ViewModels;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class PacijentSchedulingTests
+public class PacijentSchedulingTests : UnitTestBase
 {
     [TestMethod]
     public void SchedulingHelpers_NormalizeQuietHoursAndAvoidTwoDoseCollision()

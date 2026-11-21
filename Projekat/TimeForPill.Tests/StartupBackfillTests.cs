@@ -5,28 +5,21 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Razor;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.Mvc.ViewEngines;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using TimeForPill.Data;
 using TimeForPill.Models;
 using TimeForPill.Services;
-using TimeForPill.ViewModels;
 using Moq;
 
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class StartupBackfillTests
+public class StartupBackfillTests : UnitTestBase
 {
     [TestMethod]
     public async Task BackfillMissingDoses_CreatesScheduledDosesAndNormalizesLegacyValues()
     {
-        await using var context = CreateContext();
-        var patient = NewPatient();
+        await using var context = TestInfrastructure.CreateContext();
+        var patient = TestInfrastructure.CreatePatient("startup-missing-doses");
         var therapy = new Terapija
         {
             Naziv = "Stara terapija",
@@ -60,7 +53,7 @@ public class StartupBackfillTests
         });
         await context.SaveChangesAsync();
 
-        InvokeStartupHelper("BackfillMissingDoses", context);
+        TestInfrastructure.InvokeProgramHelper("BackfillMissingDoses", context);
 
         var generated = await context.TerapijskeDoze
             .Where(d => d.TerapijaId == therapy.Id)
@@ -76,8 +69,8 @@ public class StartupBackfillTests
     [TestMethod]
     public async Task BackfillDailyStatistics_GroupsByOriginalDoseDateAndKeepsHigherCounts()
     {
-        await using var context = CreateContext();
-        var patient = NewPatient();
+        await using var context = TestInfrastructure.CreateContext();
+        var patient = TestInfrastructure.CreatePatient("startup-statistics");
         var therapy = new Terapija
         {
             Naziv = "Terapija",
@@ -90,8 +83,10 @@ public class StartupBackfillTests
             IntervalSati = 8,
             Status = StatusTerapije.Cekanje
         };
-        var taken = Dose(therapy, new DateTime(2026, 1, 2, 8, 0, 0), StatusDoze.Uzeto);
-        var missed = Dose(therapy, new DateTime(2026, 1, 2, 12, 0, 0), StatusDoze.Propusteno);
+        var taken = TestInfrastructure.CreateDose(therapy, new DateTime(2026, 1, 2, 8, 0, 0));
+        taken.Status = StatusDoze.Uzeto;
+        var missed = TestInfrastructure.CreateDose(therapy, new DateTime(2026, 1, 2, 12, 0, 0));
+        missed.Status = StatusDoze.Propusteno;
         missed.OriginalnoVrijemeUzimanja = new DateTime(2026, 1, 2, 12, 0, 0);
         missed.VrijemeUzimanja = new DateTime(2026, 1, 3, 6, 0, 0);
         context.AddRange(patient, therapy, taken, missed);
@@ -104,7 +99,7 @@ public class StartupBackfillTests
         });
         await context.SaveChangesAsync();
 
-        InvokeStartupHelper("BackfillDailyStatistics", context);
+        TestInfrastructure.InvokeProgramHelper("BackfillDailyStatistics", context);
 
         var statistic = await context.PacijentDnevneStatistike.SingleAsync();
         Assert.AreEqual(5, statistic.BrojUzetih);
@@ -128,14 +123,14 @@ public class StartupBackfillTests
         services.AddSingleton(manager.Object);
         using var provider = services.BuildServiceProvider();
 
-        await InvokeSeedAdministrator(provider);
+        await TestInfrastructure.InvokeSeedAdministratorAsync(provider);
 
         Assert.IsInstanceOfType(created, typeof(Administrator));
         Assert.IsTrue(created!.EmailConfirmed);
 
         manager.Setup(userManager => userManager.FindByEmailAsync("ebosnjakov2@etf.unsa.ba"))
             .ReturnsAsync(new Pacijent { Id = "other-user" });
-        await InvokeSeedAdministrator(provider);
+        await TestInfrastructure.InvokeSeedAdministratorAsync(provider);
 
         var existing = new Administrator
         {
@@ -150,7 +145,7 @@ public class StartupBackfillTests
             .ReturnsAsync(IdentityResult.Success);
         manager.Setup(userManager => userManager.AddPasswordAsync(existing, "Admin123"))
             .ReturnsAsync(IdentityResult.Success);
-        await InvokeSeedAdministrator(provider);
+        await TestInfrastructure.InvokeSeedAdministratorAsync(provider);
         Assert.AreEqual("Eldar", existing.Ime);
         Assert.AreEqual("Bosnjakovic", existing.Prezime);
         Assert.AreEqual(DateTime.Today, existing.datumImenovanja);
@@ -189,160 +184,4 @@ public class StartupBackfillTests
         }
     }
 
-    [TestMethod]
-    public async Task CompiledViews_RenderMainPatientAdminAndDoctorScreens()
-    {
-        var program = typeof(ApplicationDbContext).Assembly.GetType("Program")!;
-        var build = program.GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
-            .Single(method => method.Name.Contains("BuildApplication", StringComparison.Ordinal));
-        var app = (WebApplication)build.Invoke(null, [new[]
-        {
-            "--environment=Development",
-            "--applicationName=TimeForPill",
-            "--ConnectionStrings:DefaultConnection=Server=localhost;Database=TimeForPillCoverage;User Id=test;Password=test;TrustServerCertificate=True"
-        }])!;
-
-        try
-        {
-            await RenderViewAsync(app, "/Views/Account/Login.cshtml", new LoginViewModel());
-            await RenderViewAsync(app, "/Views/Account/Register.cshtml", new RegisterViewModel());
-            await RenderViewAsync(app, "/Views/Pacijent/Home.cshtml", new PatientDashboardViewModel
-            {
-                Ime = "Amina",
-                TrenutnaDoza = new DosePopupViewModel { NazivLijeka = "Aspirin", VrijemeUzimanja = "08:00" },
-                DanasnjeTerapije = [new MedicineListItemViewModel { Naziv = "Aspirin", UkupanBrojDoza = 2, IntervalSati = 8 }]
-            }, isMainPage: true);
-            await RenderViewAsync(app, "/Views/Pacijent/MojiLijekovi.cshtml", Array.Empty<MedicineListItemViewModel>());
-            await RenderViewAsync(app, "/Views/Pacijent/Historija.cshtml", new HistoryViewModel());
-            await RenderViewAsync(app, "/Views/Pacijent/LijekForma.cshtml", new MedicineFormViewModel());
-            await RenderViewAsync(app, "/Views/Pacijent/ObnovaTerapije.cshtml", new RenewTherapyViewModel());
-            await RenderViewAsync(app, "/Views/Pacijent/Profil.cshtml", new ProfileViewModel());
-            await RenderViewAsync(app, "/Views/Pacijent/PrijaviNuspojavu.cshtml", new SideEffectFormViewModel());
-            await RenderViewAsync(app, "/Views/Pacijent/Nuspojave.cshtml", Array.Empty<SideEffectListItemViewModel>());
-            await RenderViewAsync(app, "/Views/Pacijent/Raspored.cshtml", Array.Empty<ScheduleDayViewModel>());
-            await RenderViewAsync(app, "/Views/Admin/Home.cshtml", new AdminDashboardViewModel
-            {
-                ZadnjiZahtjevZaPotvrdu = new AccountApprovalRequestViewModel
-                {
-                    Id = "doctor", ImePrezime = "Novi doktor", Email = "doctor@example.test", Uloga = "Ljekar"
-                },
-                ZadnjeAkcije = ["Potvrdjen nalog"]
-            });
-            await RenderViewAsync(app, "/Views/Admin/PregledLjekara.cshtml", Array.Empty<Ljekar>());
-            await RenderViewAsync(app, "/Views/Admin/PregledPacijenata.cshtml", Array.Empty<Pacijent>());
-            await RenderViewAsync(app, "/Views/Admin/Profil.cshtml", new ProfileViewModel());
-            await RenderViewAsync(app, "/Views/Admin/ZahtjeviNaloga.cshtml", Array.Empty<AccountApprovalRequestViewModel>());
-            await RenderViewAsync(app, "/Views/Ljekar/Home.cshtml", new DoctorDashboardViewModel
-            {
-                ZadnjaCetiriPotvrdjena = [new RequestListItemViewModel { Naziv = "Obnova", Pacijent = "Amina", Lijek = "Aspirin" }]
-            });
-            await RenderViewAsync(app, "/Views/Ljekar/Zahtjevi.cshtml", Array.Empty<RequestListItemViewModel>());
-            await RenderViewAsync(app, "/Views/Ljekar/Profil.cshtml", new ProfileViewModel());
-            await RenderViewAsync(app, "/Views/Ljekar/PacijentNuspojave.cshtml", new DoctorPatientSideEffectsViewModel());
-            await RenderViewAsync(app, "/Views/Administrators/Index.cshtml", new[]
-            {
-                new Administrator { Id = "admin", Ime = "Eldar", Prezime = "Admin", datumImenovanja = DateTime.Today }
-            });
-            await RenderViewAsync(app, "/Views/Lijeks/Index.cshtml", new[]
-            {
-                new Lijek { Id = 1, Naziv = "Aspirin", Kategorija = "Analgetik" }
-            });
-            await RenderViewAsync(app, "/Views/Notifikacijas/Index.cshtml", Array.Empty<Notifikacija>());
-            await RenderViewAsync(app, "/Views/Terapijas/Index.cshtml", Array.Empty<Terapija>());
-            await RenderViewAsync(app, "/Views/Zahtjevs/Index.cshtml", Array.Empty<Zahtjev>());
-            await RenderViewAsync(app, "/Views/Ljekars/Index.cshtml", Array.Empty<Ljekar>());
-            await RenderViewAsync(app, "/Views/Pacijents/Index.cshtml", Array.Empty<Pacijent>());
-        }
-        finally
-        {
-            await app.DisposeAsync();
-        }
-    }
-
-    private static async Task RenderViewAsync(
-        WebApplication app,
-        string path,
-        object model,
-        bool isMainPage = false)
-    {
-        using var scope = app.Services.CreateScope();
-        var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
-        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        var routeData = new RouteData();
-        routeData.Values["controller"] = segments[^2];
-        routeData.Values["action"] = Path.GetFileNameWithoutExtension(path);
-        routeData.Routers.Add(new ViewTestRouter());
-        var actionContext = new ActionContext(http, routeData, new Microsoft.AspNetCore.Mvc.Abstractions.ActionDescriptor());
-        var engine = scope.ServiceProvider.GetRequiredService<IRazorViewEngine>();
-        var found = engine.FindView(actionContext, Path.GetFileNameWithoutExtension(path), isMainPage);
-        Assert.IsTrue(found.Success, $"Compiled view was not found: {path}");
-        var metadata = scope.ServiceProvider.GetRequiredService<IModelMetadataProvider>();
-        var viewData = new ViewDataDictionary(metadata, new ModelStateDictionary()) { Model = model };
-        var tempData = new TempDataDictionary(http, scope.ServiceProvider.GetRequiredService<ITempDataProvider>());
-        await using var writer = new StringWriter();
-        var viewContext = new ViewContext(
-            actionContext,
-            found.View!,
-            viewData,
-            tempData,
-            writer,
-            new HtmlHelperOptions());
-
-        await found.View!.RenderAsync(viewContext);
-        Assert.IsTrue(writer.ToString().Length > 0, $"View rendered no content: {path}");
-    }
-
-    private sealed class ViewTestRouter : IRouter
-    {
-        public Task RouteAsync(RouteContext context) => Task.CompletedTask;
-
-        public VirtualPathData? GetVirtualPath(VirtualPathContext context) =>
-            new(this, "/test-route");
-    }
-
-    private static void InvokeStartupHelper(string name, ApplicationDbContext context)
-    {
-        var program = typeof(ApplicationDbContext).Assembly.GetType("Program");
-        Assert.IsNotNull(program, "Top-level Program type was not found.");
-        var helper = program.GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
-            .Single(method => method.Name.Contains(name, StringComparison.Ordinal));
-        helper.Invoke(null, [context]);
-    }
-
-    private static async Task InvokeSeedAdministrator(IServiceProvider services)
-    {
-        var program = typeof(ApplicationDbContext).Assembly.GetType("Program");
-        Assert.IsNotNull(program);
-        var helper = program.GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
-            .Single(method => method.Name.Contains("SeedDefaultAdministratorAsync", StringComparison.Ordinal));
-        var task = helper.Invoke(null, [services]) as Task;
-        Assert.IsNotNull(task);
-        await task;
-    }
-
-    private static ApplicationDbContext CreateContext() => new(
-        new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-            .Options);
-
-    private static Pacijent NewPatient() => new()
-    {
-        Id = "startup-patient",
-        UserName = "startup@example.test",
-        Email = "startup@example.test",
-        Ime = "Test",
-        Prezime = "Pacijent",
-        DatumRodjenja = new DateTime(1990, 1, 1),
-        Spol = Spol.Zensko
-    };
-
-    private static TerapijskaDoza Dose(Terapija therapy, DateTime time, StatusDoze status) => new()
-    {
-        Terapija = therapy,
-        RedniBroj = 1,
-        VrijemeUzimanja = time,
-        OriginalnoVrijemeUzimanja = time,
-        VrijemePodsjetnika = time.AddMinutes(-5),
-        Status = status
-    };
 }

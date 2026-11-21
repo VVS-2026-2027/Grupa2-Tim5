@@ -9,7 +9,7 @@ using TimeForPill.Services;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class ServiceEdgeCaseTests
+public class ServiceEdgeCaseTests : UnitTestBase
 {
     [TestMethod]
     public async Task EmailService_EmptyRecipient_RejectsRequestBeforeConfigurationCheck()

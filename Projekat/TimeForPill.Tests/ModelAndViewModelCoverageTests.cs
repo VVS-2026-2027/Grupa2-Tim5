@@ -4,7 +4,7 @@ using TimeForPill.ViewModels;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class ModelAndViewModelCoverageTests
+public class ModelAndViewModelCoverageTests : UnitTestBase
 {
     [TestMethod]
     public void DomainModels_ValidInstances_SatisfyValidationAndDefaults()

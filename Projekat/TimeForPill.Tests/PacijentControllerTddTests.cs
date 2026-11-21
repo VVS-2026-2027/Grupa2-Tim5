@@ -1,54 +1,28 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
-using Moq;
-using TimeForPill.Controllers;
-using TimeForPill.Data;
 using TimeForPill.Models;
-using TimeForPill.Services;
 using TimeForPill.ViewModels;
 
 namespace TimeForPill.Tests;
 
+/// <summary>
+/// Testovi za dvije funkcionalnosti implementirane TDD postupkom. Svaki test
+/// provjerava jednu poslovnu posljedicu (RED-GREEN-REFACTOR historija je u Gitu).
+/// </summary>
 [TestClass]
-public class PacijentControllerTddTests
+public class PacijentControllerTddTests : UnitTestBase
 {
     [TestMethod]
     [TestCategory("TDD-F1")]
-    public async Task ObnovaTerapije_DuplicatePendingRequest_CreatesOnlyOneRequest()
+    public async Task ObnovaTerapije_PendingRequestAlreadyExists_DoesNotCreateAnotherRequest()
     {
-        await using var context = CreateContext();
-        var patient = CreatePatient("patient-1");
-        var therapy = new Terapija
-        {
-            Naziv = "Terapija protiv bolova",
-            PacijentId = patient.Id,
-            Pacijent = patient,
-            Status = StatusTerapije.Cekanje,
-            Pocetak = DateTime.Today,
-            Kraj = DateTime.Today.AddDays(3),
-            DnevnaDoza = 1,
-            UkupanBrojDoza = 3,
-            BrojDozaPoObnovi = 3,
-            IntervalSati = 24
-        };
-        context.AddRange(patient, therapy, new TerapijskaDoza
-        {
-            Terapija = therapy,
-            RedniBroj = 1,
-            VrijemeUzimanja = DateTime.Now.AddHours(1),
-            OriginalnoVrijemeUzimanja = DateTime.Now.AddHours(1),
-            VrijemePodsjetnika = DateTime.Now.AddMinutes(56),
-            Status = StatusDoze.Cekanje
-        });
+        await using var context = TestInfrastructure.CreateContext();
+        var patient = TestInfrastructure.CreatePatient("tdd-renewal");
+        var medicine = new Lijek { Naziv = "Terapija protiv bolova", Kategorija = "Bol" };
+        var therapy = TestInfrastructure.CreateTherapy(patient, medicine);
+        var dose = TestInfrastructure.CreateDose(therapy, DateTime.Now.AddHours(1));
+        context.AddRange(patient, medicine, therapy, dose);
         await context.SaveChangesAsync();
-        var controller = CreateController(context, patient);
+        var controller = TestInfrastructure.CreatePatientController(context, patient);
         var model = new RenewTherapyViewModel { TerapijaId = therapy.Id, PreostaloDoza = 1 };
 
         await controller.ObnovaTerapije(model);
@@ -57,112 +31,27 @@ public class PacijentControllerTddTests
         Assert.AreEqual(1, await context.Zahtjevi.CountAsync());
     }
 
-    [TestMethod]
+    [DataTestMethod]
+    [DataRow(22, 30, 6, 0)]
+    [DataRow(23, 15, 6, 0)]
     [TestCategory("TDD-F2")]
-    public async Task Odgodi_EveningDose_MovesDoseToNextAllowedMorning()
+    public async Task Odgodi_EveningDose_MovesDoseToNextAllowedMorning(
+        int hour, int minute, int expectedHour, int expectedMinute)
     {
-        await using var context = CreateContext();
-        var patient = CreatePatient("patient-2");
-        var therapy = new Terapija
-        {
-            Naziv = "Vecernja terapija",
-            PacijentId = patient.Id,
-            Pacijent = patient,
-            Status = StatusTerapije.Cekanje,
-            Pocetak = DateTime.Today,
-            Kraj = DateTime.Today,
-            DnevnaDoza = 1,
-            UkupanBrojDoza = 1,
-            BrojDozaPoObnovi = 1,
-            IntervalSati = 24
-        };
-        var dose = new TerapijskaDoza
-        {
-            Terapija = therapy,
-            RedniBroj = 1,
-            VrijemeUzimanja = DateTime.Today.AddHours(22).AddMinutes(30),
-            OriginalnoVrijemeUzimanja = DateTime.Today.AddHours(22).AddMinutes(30),
-            VrijemePodsjetnika = DateTime.Today.AddHours(22).AddMinutes(25),
-            Status = StatusDoze.Cekanje
-        };
-        context.AddRange(patient, therapy, dose);
+        await using var context = TestInfrastructure.CreateContext();
+        var patient = TestInfrastructure.CreatePatient("tdd-postpone");
+        var medicine = new Lijek { Naziv = "Vecernja terapija", Kategorija = "Test" };
+        var therapy = TestInfrastructure.CreateTherapy(patient, medicine);
+        var scheduledAt = DateTime.Today.AddHours(hour).AddMinutes(minute);
+        var dose = TestInfrastructure.CreateDose(therapy, scheduledAt);
+        context.AddRange(patient, medicine, therapy, dose);
         await context.SaveChangesAsync();
-        var controller = CreateController(context, patient);
+        var controller = TestInfrastructure.CreatePatientController(context, patient);
 
         await controller.Odgodi(dose.Id);
 
-        Assert.AreEqual(DateTime.Today.AddDays(1).AddHours(6), dose.VrijemeUzimanja);
-        Assert.AreEqual(DateTime.Today.AddDays(1).AddHours(5).AddMinutes(55), dose.VrijemePodsjetnika);
+        Assert.AreEqual(
+            DateTime.Today.AddDays(1).AddHours(expectedHour).AddMinutes(expectedMinute),
+            dose.VrijemeUzimanja);
     }
-
-    private static ApplicationDbContext CreateContext() => new(
-        new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-            .Options);
-
-    private static PacijentController CreateController(
-        ApplicationDbContext context,
-        Pacijent patient)
-    {
-        var userManager = CreateUserManager(patient);
-        var workflow = new Mock<IDoseWorkflowService>();
-        workflow.Setup(service => service.RefreshMissedDosesAsync())
-            .Returns(Task.CompletedTask);
-        var controller = new PacijentController(
-            context,
-            workflow.Object,
-            new Mock<IEmailService>(MockBehavior.Strict).Object,
-            Options.Create(new EmailSettings()),
-            new Mock<IWebHostEnvironment>().Object,
-            NullLogger<PacijentController>.Instance,
-            userManager.Object)
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = new DefaultHttpContext
-                {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(
-                        [new Claim(ClaimTypes.NameIdentifier, patient.Id)]))
-                }
-            }
-        };
-        controller.TempData = new TempDataDictionary(
-            controller.HttpContext,
-            new Mock<ITempDataProvider>().Object);
-
-        return controller;
-    }
-
-    private static Mock<UserManager<ApplicationUser>> CreateUserManager(Pacijent patient)
-    {
-        var store = new Mock<IUserStore<ApplicationUser>>();
-        var manager = new Mock<UserManager<ApplicationUser>>(
-            store.Object,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!,
-            null!);
-        manager.Setup(service => service.GetUserId(It.IsAny<ClaimsPrincipal>()))
-            .Returns(patient.Id);
-        manager.Setup(service => service.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
-            .ReturnsAsync(patient);
-
-        return manager;
-    }
-
-    private static Pacijent CreatePatient(string id) => new()
-    {
-        Id = id,
-        UserName = "patient@example.test",
-        Email = "patient@example.test",
-        Ime = "Amina",
-        Prezime = "Kovac",
-        DatumRodjenja = new DateTime(1990, 1, 1),
-        Spol = Spol.Zensko,
-        KontaktOsoba = null!
-    };
 }

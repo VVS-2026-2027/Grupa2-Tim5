@@ -12,7 +12,7 @@ using TimeForPill.Models;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class LjekarsControllerTests
+public class LjekarsControllerTests : UnitTestBase
 {
     [TestMethod]
     public async Task LjekarsCrud_ValidatesCreatesUpdatesAuditsAndRemovesDependencies()

@@ -16,7 +16,7 @@ using TimeForPill.ViewModels;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class AdministrationAndMedicineControllerTests
+public class AdministrationAndMedicineControllerTests : UnitTestBase
 {
     [TestMethod]
     public async Task LijeksController_BlocksPatientsAndSupportsDoctorCatalogCrud()

@@ -9,7 +9,7 @@ using TimeForPill.Services;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class DoseWorkflowServiceTests
+public class DoseWorkflowServiceTests : UnitTestBase
 {
     [TestMethod]
     public async Task SendDueReminderEmailsAsync_DueDoseWithEmail_SendsReminderAndMarksDose()

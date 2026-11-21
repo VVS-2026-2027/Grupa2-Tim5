@@ -11,7 +11,7 @@ using TimeForPill.Models;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class HomeAndKorisnikControllerTests
+public class HomeAndKorisnikControllerTests : UnitTestBase
 {
     [TestMethod]
     public async Task HomeController_UnauthenticatedUser_RedirectsToLogin()

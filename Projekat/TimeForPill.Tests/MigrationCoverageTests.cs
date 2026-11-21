@@ -7,7 +7,7 @@ using TimeForPill.Data;
 namespace TimeForPill.Tests;
 
 [TestClass]
-public class MigrationCoverageTests
+public class MigrationCoverageTests : UnitTestBase
 {
     private static readonly HashSet<string> ExpectedNoOpMigrations =
     [

@@ -1,0 +1,96 @@
+Summary
+  Generated on: 11/21/2026 - 1:11:18 AM
+  Coverage date: 11/21/2026 - 1:10:31 AM
+  Parser: Cobertura
+  Assemblies: 1
+  Classes: 74
+  Files: 65
+  Line coverage: 94.5%
+  Covered lines: 13832
+  Uncovered lines: 792
+  Coverable lines: 14624
+  Total lines: 18259
+  Branch coverage: 63.8% (704 of 1102)
+  Covered branches: 704
+  Total branches: 1102
+  Method coverage: 94.1% (576 of 612)
+  Full method coverage: 76.9% (471 of 612)
+  Covered methods: 576
+  Fully covered methods: 471
+  Total methods: 612
+
+TimeForPill                                                     94.5%
+  AspNetCoreGeneratedDocument.Areas_Identity_Pages__ViewStart      0%
+  Program                                                       71.9%
+  TimeForPill.AdministratorsController                          69.5%
+  TimeForPill.Controllers.AccountController                     86.4%
+  TimeForPill.Controllers.AdminController                       84.6%
+  TimeForPill.Controllers.KorisniksController                     80%
+  TimeForPill.Controllers.LjekarController                      90.5%
+  TimeForPill.Controllers.LjekarsController                       67%
+  TimeForPill.Controllers.PacijentController                    90.9%
+  TimeForPill.Controllers.PacijentsController                   81.7%
+  TimeForPill.Controllers.TerapijasController                   77.9%
+  TimeForPill.Data.ApplicationDbContext                          100%
+  TimeForPill.HomeController                                    95.6%
+  TimeForPill.LijeksController                                    61%
+  TimeForPill.Migrations.AdminAkcijaRacunEmail                   100%
+  TimeForPill.Migrations.AdminAkcije                             100%
+  TimeForPill.Migrations.ApplicationDbContextModelSnapshot       100%
+  TimeForPill.Migrations.BrojDozaPoObnoviTerapije                100%
+  TimeForPill.Migrations.DatumDodjeleLjekaraPacijentu            100%
+  TimeForPill.Migrations.DatumKreiranjaZahtjeva                  100%
+  TimeForPill.Migrations.Nesto                                   100%
+  TimeForPill.Migrations.NuspojavePacijenata                     100%
+  TimeForPill.Migrations.PacijentDnevneStatistike                100%
+  TimeForPill.Migrations.postavkeIdentityUSerDB                  100%
+  TimeForPill.Migrations.RemoveCollectionNavigations             100%
+  TimeForPill.Migrations.SpajanjenanovubazuMonsertAsp            100%
+  TimeForPill.Migrations.TerapijskaDozaOdgodeIRaspored           100%
+  TimeForPill.Migrations.TerapijskeDozePravilaUzimanja           100%
+  TimeForPill.Migrations.TicketsTable                            100%
+  TimeForPill.Models.AdminAkcija                                88.8%
+  TimeForPill.Models.Administrator                               100%
+  TimeForPill.Models.ApplicationUser                             100%
+  TimeForPill.Models.ErrorViewModel                              100%
+  TimeForPill.Models.KontaktOsoba                                 80%
+  TimeForPill.Models.Lijek                                       100%
+  TimeForPill.Models.Ljekar                                      100%
+  TimeForPill.Models.Notifikacija                                 80%
+  TimeForPill.Models.Nuspojava                                  92.3%
+  TimeForPill.Models.Pacijent                                    100%
+  TimeForPill.Models.PacijentDnevnaStatistika                   66.6%
+  TimeForPill.Models.Terapija                                   92.8%
+  TimeForPill.Models.TerapijskaDoza                              100%
+  TimeForPill.Models.Ticket                                     72.7%
+  TimeForPill.Models.Zahtjev                                     100%
+  TimeForPill.NotifikacijasController                           55.2%
+  TimeForPill.Services.DoseReminderWorker                       92.3%
+  TimeForPill.Services.DoseWorkflowService                      88.7%
+  TimeForPill.Services.EmailService                             59.6%
+  TimeForPill.Services.EmailSettings                            90.9%
+  TimeForPill.ViewModels.AccountApprovalRequestViewModel         100%
+  TimeForPill.ViewModels.AdminDashboardViewModel                 100%
+  TimeForPill.ViewModels.DoctorDashboardViewModel                100%
+  TimeForPill.ViewModels.DoctorMedicationItemViewModel           100%
+  TimeForPill.ViewModels.DoctorPatientListItemViewModel          100%
+  TimeForPill.ViewModels.DoctorPatientMedicationViewModel        100%
+  TimeForPill.ViewModels.DoctorPatientSideEffectsViewModel       100%
+  TimeForPill.ViewModels.DosePopupViewModel                      100%
+  TimeForPill.ViewModels.HistoryViewModel                        100%
+  TimeForPill.ViewModels.LoginViewModel                          100%
+  TimeForPill.ViewModels.MedicineCatalogOptionViewModel          100%
+  TimeForPill.ViewModels.MedicineFormViewModel                  92.3%
+  TimeForPill.ViewModels.MedicineListItemViewModel               100%
+  TimeForPill.ViewModels.PatientDashboardViewModel               100%
+  TimeForPill.ViewModels.ProfileViewModel                        100%
+  TimeForPill.ViewModels.RegisterViewModel                       100%
+  TimeForPill.ViewModels.RenewTherapyViewModel                   100%
+  TimeForPill.ViewModels.RequestDetailsViewModel                 100%
+  TimeForPill.ViewModels.RequestListItemViewModel                100%
+  TimeForPill.ViewModels.ScheduleDayViewModel                    100%
+  TimeForPill.ViewModels.ScheduleItemViewModel                   100%
+  TimeForPill.ViewModels.SideEffectFormViewModel                 100%
+  TimeForPill.ViewModels.SideEffectListItemViewModel             100%
+  TimeForPill.ViewModels.TherapyOptionViewModel                  100%
+  TimeForPill.ZahtjevsController                                56.6%

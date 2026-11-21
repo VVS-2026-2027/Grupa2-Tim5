@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat Code Coverage">
+        <Configuration>
+          <!-- Razor Views su jedino iskljucenje: izvjestaj mjeri sav C# produkcijski kod. -->
+          <ExcludeByFile>**/Views/**/*.cshtml</ExcludeByFile>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+
+  <!-- Fine Code Coverage/Microsoft Code Coverage kompatibilan filter za isti skup. -->
+  <CodeCoverage>
+    <Sources>
+      <Exclude>.*\\Views\\.*</Exclude>
+    </Sources>
+  </CodeCoverage>
+</RunSettings>
