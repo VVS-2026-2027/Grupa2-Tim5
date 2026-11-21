@@ -66,13 +66,36 @@ public class LjekarControllerWorkflowTests : UnitTestBase
     }
 
     [TestMethod]
-    public void DoctorSchedulingHelpers_ProtectQuietHoursAndNormalizeRenewalText()
+    public void GenerateRenewalDoseSchedule_EveningStart_NormalizesFirstDoseToSlot()
     {
         var schedule = Invoke<IReadOnlyList<DateTime>>("GenerateRenewalDoseSchedule", new DateTime(2026, 1, 1, 22, 45, 0), 2, 24, Array.Empty<DateTime>());
+
         Assert.AreEqual(new DateTime(2026, 1, 1, 22, 30, 0), schedule[0]);
+    }
+
+    [TestMethod]
+    public void GenerateRenewalDoseSchedule_EveningStart_KeepsIntervalForSecondDose()
+    {
+        var schedule = Invoke<IReadOnlyList<DateTime>>("GenerateRenewalDoseSchedule", new DateTime(2026, 1, 1, 22, 45, 0), 2, 24, Array.Empty<DateTime>());
+
         Assert.AreEqual(new DateTime(2026, 1, 2, 22, 30, 0), schedule[1]);
+    }
+
+    [TestMethod]
+    public void MoveToAllowedDoseTime_BeforeMorning_ReturnsSixOClock()
+    {
         Assert.AreEqual(6, Invoke<DateTime>("MoveToAllowedDoseTime", new DateTime(2026, 1, 1, 4, 0, 0)).Hour);
+    }
+
+    [TestMethod]
+    public void RemoveRenewalDoseLine_RequestContainsDoseLine_RemovesOnlyDoseLine()
+    {
         Assert.AreEqual($"A{Environment.NewLine}B", Invoke<string>("RemoveRenewalDoseLine", "A\nDoza koje se dodaju obnovom: 2\nB"));
+    }
+
+    [TestMethod]
+    public void GetRenewalDoseCount_ZeroConfiguredDoses_ReturnsOneDose()
+    {
         Assert.AreEqual(1, Invoke<int>("GetRenewalDoseCount", new Terapija { UkupanBrojDoza = 0 }));
     }
 

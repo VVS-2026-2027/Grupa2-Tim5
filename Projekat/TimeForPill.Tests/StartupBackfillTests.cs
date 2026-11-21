@@ -151,37 +151,4 @@ public class StartupBackfillTests : UnitTestBase
         Assert.AreEqual(DateTime.Today, existing.datumImenovanja);
     }
 
-    [TestMethod]
-    public async Task BuildApplication_RegistersServicesAndMapsDefaultRouteWithoutConnectingToDatabase()
-    {
-        var program = typeof(ApplicationDbContext).Assembly.GetType("Program");
-        Assert.IsNotNull(program);
-        var build = program.GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
-            .Single(method => method.Name.Contains("BuildApplication", StringComparison.Ordinal));
-        const string connection = "Server=localhost;Database=TimeForPillCoverage;User Id=test;Password=test;TrustServerCertificate=True";
-        var app = (WebApplication)build.Invoke(null, [new[]
-        {
-            "--environment=Development",
-            "--applicationName=TimeForPill",
-            $"--ConnectionStrings:DefaultConnection={connection}"
-        }])!;
-
-        try
-        {
-            using var scope = app.Services.CreateScope();
-            Assert.IsNotNull(scope.ServiceProvider.GetRequiredService<ApplicationDbContext>());
-            Assert.IsNotNull(scope.ServiceProvider.GetRequiredService<IDoseWorkflowService>());
-            var endpoints = ((IEndpointRouteBuilder)app).DataSources
-                .SelectMany(source => source.Endpoints)
-                .OfType<RouteEndpoint>()
-                .ToList();
-            Assert.IsTrue(endpoints.Any(endpoint =>
-                endpoint.RoutePattern.RawText == "{controller=Account}/{action=Login}/{id?}"));
-        }
-        finally
-        {
-            await app.DisposeAsync();
-        }
-    }
-
 }

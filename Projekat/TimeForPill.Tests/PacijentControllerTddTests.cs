@@ -1,6 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using TimeForPill.Models;
-using TimeForPill.ViewModels;
 
 namespace TimeForPill.Tests;
 
@@ -15,19 +13,10 @@ public class PacijentControllerTddTests : UnitTestBase
     [TestCategory("TDD-F1")]
     public async Task ObnovaTerapije_PendingRequestAlreadyExists_DoesNotCreateAnotherRequest()
     {
-        await using var context = TestInfrastructure.CreateContext();
-        var patient = TestInfrastructure.CreatePatient("tdd-renewal");
-        var medicine = new Lijek { Naziv = "Terapija protiv bolova", Kategorija = "Bol" };
-        var therapy = TestInfrastructure.CreateTherapy(patient, medicine);
-        var dose = TestInfrastructure.CreateDose(therapy, DateTime.Now.AddHours(1));
-        context.AddRange(patient, medicine, therapy, dose);
-        await context.SaveChangesAsync();
-        var controller = TestInfrastructure.CreatePatientController(context, patient);
-        var model = new RenewTherapyViewModel { TerapijaId = therapy.Id, PreostaloDoza = 1 };
-
-        await controller.ObnovaTerapije(model);
-        await controller.ObnovaTerapije(model);
-
+        var scenario = await TestInfrastructure.CreateRenewalScenarioAsync();
+        await using var context = scenario.Context;
+        await scenario.Controller.ObnovaTerapije(scenario.Model);
+        await scenario.Controller.ObnovaTerapije(scenario.Model);
         Assert.AreEqual(1, await context.Zahtjevi.CountAsync());
     }
 
@@ -38,20 +27,9 @@ public class PacijentControllerTddTests : UnitTestBase
     public async Task Odgodi_EveningDose_MovesDoseToNextAllowedMorning(
         int hour, int minute, int expectedHour, int expectedMinute)
     {
-        await using var context = TestInfrastructure.CreateContext();
-        var patient = TestInfrastructure.CreatePatient("tdd-postpone");
-        var medicine = new Lijek { Naziv = "Vecernja terapija", Kategorija = "Test" };
-        var therapy = TestInfrastructure.CreateTherapy(patient, medicine);
-        var scheduledAt = DateTime.Today.AddHours(hour).AddMinutes(minute);
-        var dose = TestInfrastructure.CreateDose(therapy, scheduledAt);
-        context.AddRange(patient, medicine, therapy, dose);
-        await context.SaveChangesAsync();
-        var controller = TestInfrastructure.CreatePatientController(context, patient);
-
-        await controller.Odgodi(dose.Id);
-
-        Assert.AreEqual(
-            DateTime.Today.AddDays(1).AddHours(expectedHour).AddMinutes(expectedMinute),
-            dose.VrijemeUzimanja);
+        var scenario = await TestInfrastructure.CreateEveningPostponementScenarioAsync(hour, minute);
+        await using var context = scenario.Context;
+        await scenario.Controller.Odgodi(scenario.Dose.Id);
+        Assert.AreEqual(DateTime.Today.AddDays(1).AddHours(expectedHour).AddMinutes(expectedMinute), scenario.Dose.VrijemeUzimanja);
     }
 }

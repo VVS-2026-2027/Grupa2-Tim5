@@ -93,6 +93,30 @@ public static class TestInfrastructure
         PrikaziKontaktOsobu = true
     };
 
+    public static async Task<(ApplicationDbContext Context, PacijentController Controller, RenewTherapyViewModel Model)>
+        CreateRenewalScenarioAsync()
+    {
+        var context = CreateContext();
+        var patient = CreatePatient("tdd-renewal");
+        var medicine = new Lijek { Naziv = "Terapija protiv bolova", Kategorija = "Bol" };
+        var therapy = CreateTherapy(patient, medicine);
+        context.AddRange(patient, medicine, therapy, CreateDose(therapy, DateTime.Now.AddHours(1)));
+        await context.SaveChangesAsync();
+        return (context, CreatePatientController(context, patient), new RenewTherapyViewModel { TerapijaId = therapy.Id, PreostaloDoza = 1 });
+    }
+
+    public static async Task<(ApplicationDbContext Context, PacijentController Controller, TerapijskaDoza Dose)>
+        CreateEveningPostponementScenarioAsync(int hour, int minute)
+    {
+        var context = CreateContext();
+        var seeded = await SeedPatientTherapyAsync(context, "tdd-postpone");
+        seeded.Dose.VrijemeUzimanja = DateTime.Today.AddHours(hour).AddMinutes(minute);
+        seeded.Dose.OriginalnoVrijemeUzimanja = seeded.Dose.VrijemeUzimanja;
+        seeded.Dose.VrijemePodsjetnika = seeded.Dose.VrijemeUzimanja.AddMinutes(-5);
+        await context.SaveChangesAsync();
+        return (context, CreatePatientController(context, seeded.Patient), seeded.Dose);
+    }
+
     public static PacijentController CreatePatientController(
         ApplicationDbContext context,
         Pacijent patient,
